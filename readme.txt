@@ -1,4 +1,9 @@
-/class-attendance/
+
+
+
+System Structure
+
+/Simple-Class-Attendance/
 |-- api/
 |   |-- auth.php             # Handles login/registration
 |   |-- classes.php          # CRUD for classes

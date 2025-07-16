@@ -1,0 +1,403 @@
+/**
+ * Main JavaScript file for the Class Attendance Dashboard.
+ * Handles all frontend logic, interactivity, and API communication.
+ * FINAL CLEANED VERSION with all fixes.
+ */
+document.addEventListener('DOMContentLoaded', () => {
+
+    // --- STATE MANAGEMENT ---
+    let currentClassId = null; 
+
+    // --- GLOBAL DOM ELEMENT SELECTORS ---
+    const classListView = document.getElementById('class-list-view');
+    const classDetailView = document.getElementById('class-detail-view');
+    const classModal = document.getElementById('class-modal');
+    const classForm = document.getElementById('class-form');
+    const studentModal = document.getElementById('student-modal');
+    const studentForm = document.getElementById('student-form');
+    const attendanceModal = document.getElementById('student-attendance-modal');
+    const classListContainer = document.getElementById('class-list-container');
+    const enrolledStudentListContainer = document.getElementById('enrolled-student-list-container');
+    
+    // --- INITIALIZATION ---
+    function initializeDashboard() {
+        showClassListView();
+        loadClasses();
+        setupEventListeners();
+    }
+
+    // --- VIEW MANAGEMENT ---
+    function showClassListView() {
+        classListView.style.display = 'block';
+        classDetailView.style.display = 'none';
+        currentClassId = null;
+        document.querySelector('.tab-button[data-tab="attendance"]').click();
+        stopScanner(); // Ensure scanner stops when leaving view
+    }
+
+    function showClassDetailView(classInfo) {
+        currentClassId = classInfo.id;
+        document.getElementById('detail-class-name').textContent = `${classInfo.class_name} (${classInfo.unit_code})`;
+        classListView.style.display = 'none';
+        classDetailView.style.display = 'block';
+        loadEnrolledStudents();
+        const today = new Date().toISOString().split('T')[0];
+        document.getElementById('report-start-date').value = today;
+        document.getElementById('report-end-date').value = today;
+    }
+
+    // --- DATA LOADING & API CALLS ---
+    async function apiFetch(url, options = {}) {
+        try {
+            const response = await fetch(url, options);
+            if (!response.ok) {
+                const errorData = await response.json().catch(() => ({ message: response.statusText }));
+                throw new Error(errorData.message || `HTTP error! status: ${response.status}`);
+            }
+            return response.json();
+        } catch (error) {
+            console.error('API Fetch Error:', error);
+            showToast(`Error: ${error.message}`, 'error');
+            throw error;
+        }
+    }
+    
+    async function loadClasses() {
+        try {
+            const classes = await apiFetch('api/classes.php?action=get_classes');
+            renderClasses(classes);
+        } catch (e) { /* handled by apiFetch */ }
+    }
+    
+    async function loadEnrolledStudents() {
+        if (!currentClassId) return;
+        try {
+            const students = await apiFetch(`api/enrollment.php?action=get_enrolled_students&class_id=${currentClassId}`);
+            renderEnrolledStudents(students);
+        } catch (e) { /* handled by apiFetch */ }
+    }
+
+    // --- RENDERING FUNCTIONS ---
+    function renderClasses(classes) {
+        classListContainer.innerHTML = '';
+        if (classes.length === 0) {
+            classListContainer.innerHTML = '<p class="empty-list-message">No classes found. Add one to get started!</p>';
+            return;
+        }
+        classes.forEach(cls => {
+            const startTime = cls.start_time.substring(0, 5);
+            const endTime = cls.end_time.substring(0, 5);
+            const classCard = `
+                <div class="card class-card" data-class-info='${JSON.stringify(cls)}'>
+                    <div class="card-content">
+                        <h4>${cls.class_name} (${cls.unit_code})</h4>
+                        <p>${cls.day_of_week}, ${startTime} - ${endTime}</p>
+                    </div>
+                    <div class="card-actions">
+                        <button class="button icon-button edit-class-btn" title="Edit Class"><span class="material-symbols-outlined">edit</span></button>
+                        <button class="button icon-button delete-class-btn" title="Delete Class"><span class="material-symbols-outlined">delete</span></button>
+                    </div>
+                </div>`;
+            classListContainer.insertAdjacentHTML('beforeend', classCard);
+        });
+    }
+
+    function renderEnrolledStudents(students) {
+        enrolledStudentListContainer.innerHTML = '';
+        if (students.length === 0) {
+            enrolledStudentListContainer.innerHTML = '<p class="empty-list-message">No students enrolled. Use "Add Student" to create and enroll a new student.</p>';
+            return;
+        }
+        students.forEach(student => {
+            const studentCard = `
+                <div class="card student-card" data-id="${student.id}" data-student-info='${JSON.stringify(student)}'>
+                    <div class="card-content">
+                        <h4>${student.last_name}, ${student.first_name}</h4>
+                        <p>ID: ${student.student_id_num}</p>
+                        <span class="status-indicator status-${student.status.toLowerCase()}">${student.status}</span>
+                    </div>
+                    <div class="card-actions">
+                         <button class="button view-attendance-btn" title="View Attendance History">History</button>
+                         <button class="button icon-button edit-enrolled-student-btn" title="Edit Student"><span class="material-symbols-outlined">edit</span></button>
+                         <img src="api/generate_qr.php?id=${student.student_id_num}" alt="QR Code" class="qr-code-thumb">
+                    </div>
+                </div>`;
+            enrolledStudentListContainer.insertAdjacentHTML('beforeend', studentCard);
+        });
+    }
+
+    // --- EVENT LISTENERS SETUP ---
+    function setupEventListeners() {
+        document.getElementById('back-to-classes-link').addEventListener('click', (e) => {
+            e.preventDefault();
+            showClassListView();
+        });
+        document.querySelector('.tab-nav').addEventListener('click', e => {
+            if (e.target.tagName === 'BUTTON') {
+                document.querySelectorAll('.tab-button').forEach(btn => btn.classList.remove('active'));
+                document.querySelectorAll('.tab-pane').forEach(pane => pane.classList.remove('active'));
+                e.target.classList.add('active');
+                document.getElementById(`tab-${e.target.dataset.tab}`).classList.add('active');
+            }
+        });
+        document.getElementById('add-class-btn').addEventListener('click', () => openClassModal());
+        document.getElementById('add-student-to-class-btn').addEventListener('click', () => openStudentModal());
+        document.getElementById('import-students-btn').addEventListener('click', () => document.getElementById('csv-file-input').click());
+        document.getElementById('delete-student-in-modal-btn').addEventListener('click', handleDeleteStudentInModal);
+        classModal.addEventListener('click', e => { if (e.target.id === 'class-modal' || e.target.id === 'cancel-class-modal') classModal.style.display = 'none'; });
+        studentModal.addEventListener('click', e => { if (e.target.id === 'student-modal' || e.target.id === 'cancel-student-modal') studentModal.style.display = 'none'; });
+        attendanceModal.addEventListener('click', e => { if (e.target.id === 'student-attendance-modal' || e.target.id === 'close-attendance-modal') attendanceModal.style.display = 'none'; });
+        classForm.addEventListener('submit', handleClassForm);
+        studentForm.addEventListener('submit', handleStudentForm);
+        document.getElementById('report-export-form').addEventListener('submit', handleReportExport);
+        document.getElementById('csv-file-input').addEventListener('change', handleCsvImport);
+        classListContainer.addEventListener('click', handleClassListClick);
+        enrolledStudentListContainer.addEventListener('click', handleEnrolledStudentListClick);
+        document.getElementById('start-scan-btn').addEventListener('click', toggleScanner);
+    }
+    
+    // --- EVENT HANDLER FUNCTIONS ---
+    function openClassModal(classInfo = null) {
+        classForm.reset();
+        document.getElementById('class-id').value = '';
+        if (classInfo) {
+            document.getElementById('class-modal-title').textContent = 'Edit Class';
+            document.getElementById('class-id').value = classInfo.id;
+            document.getElementById('class-name').value = classInfo.class_name;
+            document.getElementById('unit-code').value = classInfo.unit_code;
+            document.getElementById('day-of-week').value = classInfo.day_of_week;
+            document.getElementById('start-time').value = classInfo.start_time;
+            document.getElementById('end-time').value = classInfo.end_time;
+        } else {
+            document.getElementById('class-modal-title').textContent = 'Add New Class';
+        }
+        classModal.style.display = 'flex';
+    }
+
+    async function handleClassForm(e) {
+        e.preventDefault();
+        const action = document.getElementById('class-id').value ? 'update_class' : 'add_class';
+        const formData = new FormData(classForm);
+        formData.append('action', action);
+        try {
+            const result = await apiFetch('api/classes.php', { method: 'POST', body: formData });
+            if (result.success) {
+                showToast(result.message, 'success');
+                classModal.style.display = 'none';
+                loadClasses();
+            }
+        } catch (error) { /* Handled by apiFetch */ }
+    }
+
+    function handleClassListClick(e) {
+        const card = e.target.closest('.class-card');
+        if (!card) return;
+        const classInfo = JSON.parse(card.dataset.classInfo);
+        if (e.target.closest('.edit-class-btn')) {
+            openClassModal(classInfo);
+        } else if (e.target.closest('.delete-class-btn')) {
+            if (confirm('Are you sure you want to delete this class and all its records?')) {
+                const formData = new FormData();
+                formData.append('action', 'delete_class');
+                formData.append('class_id', classInfo.id);
+                apiFetch('api/classes.php', { method: 'POST', body: formData }).then(loadClasses).catch(() => {});
+            }
+        } else {
+            showClassDetailView(classInfo);
+        }
+    }
+    
+    function openStudentModal(studentInfo = null) {
+        studentForm.reset();
+        const deleteBtn = document.getElementById('delete-student-in-modal-btn');
+        if (studentInfo) {
+            document.getElementById('student-modal-title').textContent = 'Edit Student';
+            document.getElementById('student-id').value = studentInfo.id;
+            document.getElementById('student-id-num').value = studentInfo.student_id_num;
+            document.getElementById('first-name').value = studentInfo.first_name;
+            document.getElementById('last-name').value = studentInfo.last_name;
+            document.getElementById('phone').value = studentInfo.phone;
+            deleteBtn.style.display = 'inline-block';
+        } else {
+            document.getElementById('student-modal-title').textContent = 'Add New Student';
+            document.getElementById('student-id').value = '';
+            deleteBtn.style.display = 'none';
+        }
+        studentModal.style.display = 'flex';
+    }
+    
+    async function handleStudentForm(e) {
+        e.preventDefault();
+        const studentId = document.getElementById('student-id').value;
+        const action = studentId ? 'update_student' : 'add_and_enroll_student';
+        const formData = new FormData(studentForm);
+        formData.append('action', action);
+        if (action === 'add_and_enroll_student') {
+            formData.append('class_id', currentClassId);
+        }
+        try {
+            const result = await apiFetch('api/students.php', { method: 'POST', body: formData });
+            if (result.success) {
+                showToast(result.message, 'success');
+                studentModal.style.display = 'none';
+                loadEnrolledStudents();
+            }
+        } catch (error) { /* Handled by apiFetch */ }
+    }
+
+    async function handleEnrolledStudentListClick(e) {
+        const card = e.target.closest('.student-card');
+        if (!card) return;
+        const studentInfo = JSON.parse(card.dataset.studentInfo);
+
+        if (e.target.closest('.view-attendance-btn')) {
+            try {
+                const data = await apiFetch(`api/attendance.php?action=get_student_attendance_for_class&student_id=${studentInfo.id}&class_id=${currentClassId}`);
+                if (data.success) {
+                    const list = document.getElementById('student-attendance-list');
+                    const title = document.getElementById('student-attendance-title');
+                    title.textContent = `Attendance for ${studentInfo.first_name} ${studentInfo.last_name}`;
+                    list.innerHTML = '';
+                    if (data.records.length > 0) {
+                        data.records.forEach(rec => {
+                            list.innerHTML += `<div class="attendance-record"><span>${rec.attendance_date} at ${rec.attendance_time}</span><span class="status-${rec.status.toLowerCase()}">${rec.status}</span></div>`;
+                        });
+                    } else {
+                        list.innerHTML = '<p>No attendance records found for this student in this class.</p>';
+                    }
+                    attendanceModal.style.display = 'flex';
+                }
+            } catch(error) { /* Handled by apiFetch */ }
+        } else if (e.target.closest('.edit-enrolled-student-btn')) {
+            openStudentModal(studentInfo);
+        }
+    }
+
+    async function handleDeleteStudentInModal() {
+        const studentId = document.getElementById('student-id').value;
+        if (!studentId) return;
+        if (confirm('Are you sure you want to permanently delete this student? This action cannot be undone.')) {
+            const formData = new FormData();
+            formData.append('action', 'delete_student');
+            formData.append('student_id', studentId);
+            try {
+                const result = await apiFetch('api/students.php', { method: 'POST', body: formData });
+                if (result.success) {
+                    showToast('Student deleted successfully.', 'success');
+                    studentModal.style.display = 'none';
+                    loadEnrolledStudents();
+                }
+            } catch (error) { /* Handled by apiFetch */ }
+        }
+    }
+
+    async function handleCsvImport(e) {
+        const file = e.target.files[0];
+        if (!file || !currentClassId) return;
+        showToast('Importing and enrolling students...', 'info');
+        const formData = new FormData();
+        formData.append('action', 'import_students');
+        formData.append('student_csv', file);
+        formData.append('class_id', currentClassId);
+        try {
+            const result = await apiFetch('api/import_export.php', { method: 'POST', body: formData });
+            if (result.success) {
+                showToast(result.message, 'success');
+                loadEnrolledStudents();
+            }
+        } catch(error) { /* Handled by apiFetch */ }
+        e.target.value = '';
+    }
+    
+    function handleReportExport(e) {
+        e.preventDefault();
+        const startDate = document.getElementById('report-start-date').value;
+        const endDate = document.getElementById('report-end-date').value;
+        if (!startDate || !endDate) {
+            showToast('Please select a start and end date.', 'error');
+            return;
+        }
+        window.location.href = `api/import_export.php?action=export_attendance&class_id=${currentClassId}&start_date=${startDate}&end_date=${endDate}`;
+    }
+
+    // --- QR SCANNER LOGIC (CONTINUOUS SCANNING) ---
+    let isScannerActive = false;
+    let isScanProcessing = false;
+    const html5QrcodeScanner = new Html5QrcodeScanner("qr-reader", { fps: 10, qrbox: { width: 250, height: 250 } });
+    const qrReaderDiv = document.getElementById('qr-reader');
+    const startScanBtn = document.getElementById('start-scan-btn');
+    
+    function toggleScanner() {
+        if (isScannerActive) {
+            stopScanner();
+        } else {
+            startScanner();
+        }
+    }
+    
+    function startScanner() {
+        if (!currentClassId) {
+            showToast('Error: No class is selected for attendance.', 'error');
+            return;
+        }
+        qrReaderDiv.style.display = 'block';
+        startScanBtn.textContent = 'Stop Scanning';
+        startScanBtn.classList.add('destructive');
+        isScannerActive = true;
+        html5QrcodeScanner.render(onScanSuccess, onScanError);
+    }
+    
+    async function stopScanner() {
+        if (!isScannerActive) return;
+        try {
+            // Check if the scanner is in a state that can be cleared.
+            if (html5QrcodeScanner.getState() === Html5QrcodeScannerState.SCANNING) {
+               await html5QrcodeScanner.clear();
+            }
+        } catch (error) {
+            console.warn("Error stopping the scanner, but proceeding with UI reset.", error);
+        }
+        qrReaderDiv.style.display = 'none';
+        startScanBtn.textContent = 'Start Scanning';
+        startScanBtn.classList.remove('destructive');
+        isScannerActive = false;
+    }
+    
+    async function onScanSuccess(decodedText) {
+        if (isScanProcessing) return;
+        isScanProcessing = true;
+        showToast(`Scanned: ${decodedText}. Processing...`, 'info');
+        const formData = new FormData();
+        formData.append('action', 'mark_present');
+        formData.append('student_id_num', decodedText);
+        formData.append('class_id', currentClassId);
+        try {
+            const result = await apiFetch('api/attendance.php', { method: 'POST', body: formData });
+            if (result.success) {
+                showToast(result.message, 'success');
+                loadEnrolledStudents();
+            }
+        } catch (error) { /* handled by apiFetch */
+        } finally {
+            setTimeout(() => { isScanProcessing = false; }, 1500);
+        }
+    }
+    
+    function onScanError(errorMessage) { /* Can be ignored. */ }
+
+    // --- UTILITY ---
+    function showToast(message, type = 'info') {
+        const toast = document.createElement('div');
+        toast.className = `toast toast-${type}`;
+        toast.textContent = message;
+        document.body.appendChild(toast);
+        setTimeout(() => toast.classList.add('show'), 10);
+        setTimeout(() => {
+            toast.classList.remove('show');
+            toast.addEventListener('transitionend', () => toast.remove());
+        }, 3000);
+    }
+    
+    // --- KICK EVERYTHING OFF ---
+    initializeDashboard();
+});

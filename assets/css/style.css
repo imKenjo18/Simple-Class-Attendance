@@ -1,0 +1,160 @@
+:root {
+    --md-sys-color-primary: #6750A4;
+    --md-sys-color-on-primary: #FFFFFF;
+    --md-sys-color-surface-container-highest: #E6E0E9;
+    --md-sys-color-outline: #79747E;
+    --md-sys-color-background: #FFFBFE;
+    --md-sys-color-on-surface: #1C1B1F;
+    --font-family-sans-serif: 'Roboto', sans-serif;
+}
+
+body {
+    font-family: var(--font-family-sans-serif);
+    background-color: var(--md-sys-color-background);
+    color: var(--md-sys-color-on-surface);
+    margin: 0;
+}
+
+header {
+    background-color: var(--md-sys-color-surface-container-highest);
+    padding: 1rem 2rem;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-bottom: 1px solid var(--md-sys-color-outline);
+}
+
+main {
+    padding: 2rem;
+    display: grid;
+    gap: 2rem;
+}
+
+section {
+    background: var(--md-sys-color-surface-container-highest);
+    padding: 1.5rem;
+    border-radius: 12px;
+}
+
+.button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 10px 24px;
+    border-radius: 20px;
+    border: 1px solid var(--md-sys-color-outline);
+    background-color: transparent;
+    color: var(--md-sys-color-primary);
+    font-weight: 500;
+    cursor: pointer;
+    transition: background-color 0.3s;
+    text-decoration: none;
+}
+.button:hover {
+    background-color: rgba(103, 80, 164, 0.08);
+}
+.button.primary {
+    background-color: var(--md-sys-color-primary);
+    color: var(--md-sys-color-on-primary);
+    border: none;
+}
+.button.primary:hover {
+    box-shadow: 0 1px 3px 1px rgba(0,0,0,0.15);
+}
+.button.icon-button .material-symbols-outlined {
+    margin-right: 8px;
+}
+/* Modal Styles */
+.modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.5);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 1000;
+}
+.modal-content {
+    background: var(--md-sys-color-background);
+    padding: 2rem;
+    border-radius: 28px;
+    width: 90%;
+    max-width: 500px;
+    box-shadow: 0 4px 8px 3px rgba(0,0,0,0.15);
+}
+.form-group { margin-bottom: 1rem; }
+.form-group label { display: block; margin-bottom: 0.5rem; font-weight: 500; }
+.form-group input, .form-group select {
+    width: 100%;
+    padding: 12px;
+    border-radius: 4px;
+    border: 1px solid var(--md-sys-color-outline);
+    box-sizing: border-box;
+}
+.form-group-inline { display: flex; gap: 1rem; }
+.form-group-inline .form-group { flex: 1; }
+.modal-actions { margin-top: 2rem; text-align: right; }
+
+.card {
+    background-color: #fff;
+    border-radius: 12px;
+    border: 1px solid var(--md-sys-color-outline);
+    margin-bottom: 1rem;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 1rem;
+}
+.card-actions { display: flex; gap: 0.5rem; }
+.status-indicator { padding: 4px 8px; border-radius: 12px; color: white; font-size: 0.8em; }
+.status-green { background-color: #34A853; }
+.status-yellow { background-color: #FBBC04; }
+.status-red { background-color: #EA4335; }
+.qr-code-thumb { width: 40px; height: 40px; }
+
+/* Toast Notification Styles */
+.toast {
+    position: fixed;
+    bottom: 20px;
+    left: 50%;
+    transform: translateX(-50%);
+    padding: 12px 20px;
+    border-radius: 8px;
+    color: white;
+    font-weight: 500;
+    box-shadow: 0 4px 10px rgba(0,0,0,0.2);
+    z-index: 2000;
+    opacity: 0;
+    visibility: hidden;
+    transition: opacity 0.3s, visibility 0.3s, bottom 0.3s;
+}
+
+.toast.show {
+    opacity: 1;
+    visibility: visible;
+    bottom: 40px;
+}
+
+.toast-success {
+    background-color: #34A853; /* Green */
+}
+
+.toast-error {
+    background-color: #EA4335; /* Red */
+}
+
+.toast-info {
+    background-color: #4285F4; /* Blue */
+}
+
+/* In style.css */
+.button.destructive {
+    background-color: #d32f2f; /* A shade of red */
+    color: white;
+}
+.button.destructive:hover {
+    background-color: #b71c1c; /* A darker red for hover */
+}

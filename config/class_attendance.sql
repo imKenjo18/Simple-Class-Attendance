@@ -1,4 +1,24 @@
 --
+-- SQL Script for creating the Class Attendance System database
+-- Author: Your AI Assistant
+-- Version: 1.0
+--
+-- Instructions:
+-- 1. Create a new database in your MySQL server (or this script will create it).
+-- 2. Import this .sql file to set up all tables and relationships.
+--
+
+SET SQL_MODE = "NO_AUTO_VALUE_ON_ZERO";
+START TRANSACTION;
+SET time_zone = "+00:00";
+
+
+/*!40101 SET @OLD_CHARACTER_SET_CLIENT=@@CHARACTER_SET_CLIENT */;
+/*!40101 SET @OLD_CHARACTER_SET_RESULTS=@@CHARACTER_SET_RESULTS */;
+/*!40101 SET @OLD_COLLATION_CONNECTION=@@COLLATION_CONNECTION */;
+/*!40101 SET NAMES utf8mb4 */;
+
+--
 -- Database: `class_attendance`
 --
 CREATE DATABASE IF NOT EXISTS `class_attendance` DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
@@ -25,13 +45,14 @@ CREATE TABLE `teachers` (
 --
 -- Table structure for table `classes`
 -- Stores information about each class, linked to a specific teacher.
+-- The `day_of_week` column uses the new MWF, TTH, S schedule format.
 --
 CREATE TABLE `classes` (
   `id` int(11) UNSIGNED NOT NULL AUTO_INCREMENT,
   `teacher_id` int(11) UNSIGNED NOT NULL,
   `class_name` varchar(100) COLLATE utf8mb4_unicode_ci NOT NULL,
   `unit_code` varchar(20) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
-  `day_of_week` enum('Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday') COLLATE utf8mb4_unicode_ci NOT NULL,
+  `day_of_week` enum('MWF','TTH','S') COLLATE utf8mb4_unicode_ci NOT NULL,
   `start_time` time NOT NULL,
   `end_time` time NOT NULL,
   `created_at` timestamp NOT NULL DEFAULT current_timestamp(),
@@ -63,8 +84,8 @@ CREATE TABLE `students` (
 
 --
 -- Table structure for table `class_enrollment`
--- This is a "join" or "pivot" table. It links students to classes.
--- This is the core of the class-centric model.
+-- This is the crucial "join" or "pivot" table that links students to classes.
+-- It ensures a student can only be enrolled in the same class once.
 --
 CREATE TABLE `class_enrollment` (
   `id` int(11) UNSIGNED NOT NULL AUTO_INCREMENT,
@@ -101,6 +122,9 @@ CREATE TABLE `attendance_records` (
 
 --
 -- Foreign Key Constraints for the tables
+-- These are added at the end to ensure all tables exist first.
+-- ON DELETE CASCADE ensures that if a parent record (like a class or student) is deleted,
+-- all related child records (enrollments, attendance) are automatically cleaned up.
 --
 
 ALTER TABLE `classes`
@@ -115,3 +139,7 @@ ALTER TABLE `attendance_records`
   ADD CONSTRAINT `fk_attendance_student` FOREIGN KEY (`student_id`) REFERENCES `students` (`id`) ON DELETE CASCADE ON UPDATE CASCADE;
 
 COMMIT;
+
+/*!40101 SET CHARACTER_SET_CLIENT=@OLD_CHARACTER_SET_CLIENT */;
+/*!40101 SET CHARACTER_SET_RESULTS=@OLD_CHARACTER_SET_RESULTS */;
+/*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;

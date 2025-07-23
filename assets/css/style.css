@@ -1,5 +1,5 @@
 @font-face {
-  font-family: 'Roboto';
+  font-family: 'Product Sans';
   /* The path is relative to the CSS file itself */
   src: url('../fonts/ProductSans-Regular.ttf') format('truetype');
   font-weight: 400;
@@ -13,11 +13,11 @@
     --md-sys-color-outline: #80cbc4;
     --md-sys-color-background: #e0f2f1;
     --md-sys-color-on-surface: #004D40;
-    --font-family-sans-serif: 'Roboto', sans-serif;
+    --font-family-sans-serif: 'Product Sans', sans-serif;
 }
 
 *{
-    font-family:'Roboto', sans-serif;
+    font-family:'Product Sans', sans-serif;
 }
 body {
     font-family: var(--font-family-sans-serif);

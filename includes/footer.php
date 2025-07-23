@@ -97,7 +97,7 @@
     </div>
 
     <!-- JavaScript libraries and your custom app script -->
-    <script src="https://unpkg.com/html5-qrcode" type="text/javascript"></script>
+    <script src="assets/js/html5-qrcode.min.js" type="text/javascript"></script>
     <script src="assets/js/app.js"></script>
 </body>
 </html>

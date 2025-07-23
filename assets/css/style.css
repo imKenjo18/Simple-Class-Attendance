@@ -1,13 +1,24 @@
+@font-face {
+  font-family: 'Roboto';
+  /* The path is relative to the CSS file itself */
+  src: url('../fonts/ProductSans-Regular.ttf') format('truetype');
+  font-weight: 400;
+  font-style: normal;
+}
+
 :root {
-    --md-sys-color-primary: #6750A4;
+    --md-sys-color-primary: #004d40;
     --md-sys-color-on-primary: #FFFFFF;
-    --md-sys-color-surface-container-highest: #E6E0E9;
-    --md-sys-color-outline: #79747E;
-    --md-sys-color-background: #FFFBFE;
-    --md-sys-color-on-surface: #1C1B1F;
+    --md-sys-color-surface-container-highest: #B2DFDB;
+    --md-sys-color-outline: #80cbc4;
+    --md-sys-color-background: #e0f2f1;
+    --md-sys-color-on-surface: #004D40;
     --font-family-sans-serif: 'Roboto', sans-serif;
 }
 
+*{
+    font-family:'Roboto', sans-serif;
+}
 body {
     font-family: var(--font-family-sans-serif);
     background-color: var(--md-sys-color-background);
@@ -33,7 +44,7 @@ main {
 section {
     background: var(--md-sys-color-surface-container-highest);
     padding: 1.5rem;
-    border-radius: 12px;
+    border-radius: 30px;
 }
 
 .button {
@@ -89,8 +100,8 @@ section {
 .form-group label { display: block; margin-bottom: 0.5rem; font-weight: 500; }
 .form-group input, .form-group select {
     width: 100%;
-    padding: 12px;
-    border-radius: 4px;
+    padding: 16px;
+    border-radius: 12px;
     border: 1px solid var(--md-sys-color-outline);
     box-sizing: border-box;
 }
@@ -113,7 +124,7 @@ section {
 .status-green { background-color: #34A853; }
 .status-yellow { background-color: #FBBC04; }
 .status-red { background-color: #EA4335; }
-.qr-code-thumb { width: 40px; height: 40px; }
+.qr-code-thumb { width: 40px; height: 40px;padding-right: 30px;margin-right: 20px;border-right: 1px solid #333;}
 
 /* Toast Notification Styles */
 .toast {
@@ -157,4 +168,102 @@ section {
 }
 .button.destructive:hover {
     background-color: #b71c1c; /* A darker red for hover */
+}
+.section-header{
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 22px;
+
+}
+#add-class-btn{
+    background: #00897B;
+    color: #e0f2f1;
+}
+h4{
+    font-size: 23px;
+    padding: 5px;
+    margin: 0px;
+}
+
+/* ================================== */
+/*   Tab Navigation Styles            */
+/* ================================== */
+
+.tab-nav {
+    display: flex;
+    border-bottom: 2px solid #ddd;
+    margin-bottom: 20px;
+}
+
+.tab-button {
+    padding: 10px 20px;
+    border: none;
+    background-color: transparent;
+    cursor: pointer;
+    font-size: 1rem;
+    color: #555;
+    border-bottom: 3px solid transparent;
+    transition: all 0.2s ease-in-out;
+}
+
+.tab-button:hover {
+    background-color: #f0f0f0;
+}
+
+/* This is the style for the SELECTED tab button */
+.tab-button.active {
+    color: #007bff;
+    border-bottom-color: #007bff;
+    font-weight: 500;
+}
+
+/* This is the rule that HIDES the inactive content panes */
+.tab-pane {
+    display: none;
+}
+
+/* This is the rule that SHOWS the active content pane */
+.tab-pane.active {
+    display: block;
+}
+/* ================================== */
+/*   Data Table Styles (for Reports/History) */
+/* ================================== */
+
+.data-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 15px;
+}
+
+.data-table th,
+.data-table td {
+    padding: 8px 12px;
+    border: 1px solid #ddd;
+    text-align: left;
+}
+
+.data-table th {
+    background-color: #f2f2f2;
+    font-weight: 500;
+}
+
+.data-table tbody tr:nth-child(even) {
+    background-color: #f9f9f9;
+}
+
+.button-group{
+    display: flex;
+    gap: 8px;
+}
+
+#add-student-to-class-btn, #import-students-btn{
+    color: #e0f2f1;
+    background: #004d40;
+    height: 60px;
+}
+.stacon{
+    display: flex;
+    align-items: center;
+    gap: 20px;
 }

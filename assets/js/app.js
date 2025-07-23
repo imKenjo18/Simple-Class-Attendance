@@ -1,12 +1,12 @@
 /**
  * Main JavaScript file for the Class Attendance Dashboard.
- * Handles all frontend logic, interactivity, and API communication.
- * FINAL CLEANED VERSION with all fixes.
+ * FINAL CLEANED VERSION with all features and fixes.
  */
 document.addEventListener('DOMContentLoaded', () => {
 
     // --- STATE MANAGEMENT ---
-    let currentClassId = null; 
+    let currentClassId = null;
+    let currentStudentForHistory = null; // Holds info for the history download
 
     // --- GLOBAL DOM ELEMENT SELECTORS ---
     const classListView = document.getElementById('class-list-view');
@@ -44,6 +44,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const today = new Date().toISOString().split('T')[0];
         document.getElementById('report-start-date').value = today;
         document.getElementById('report-end-date').value = today;
+        document.getElementById('report-preview-container').innerHTML = ''; // Clear old report previews
     }
 
     // --- DATA LOADING & API CALLS ---
@@ -109,17 +110,23 @@ document.addEventListener('DOMContentLoaded', () => {
             return;
         }
         students.forEach(student => {
-            const studentCard = `
+            const studentCard =  `
                 <div class="card student-card" data-id="${student.id}" data-student-info='${JSON.stringify(student)}'>
                     <div class="card-content">
                         <h4>${student.last_name}, ${student.first_name}</h4>
+                        <div class="stacon">
                         <p>ID: ${student.student_id_num}</p>
-                        <span class="status-indicator status-${student.status.toLowerCase()}">${student.status}</span>
+                         <p>Status: </p><span class="status-indicator status-${student.status.toLowerCase()}"> ${student.status}</span>
+                        </div>
                     </div>
                     <div class="card-actions">
-                         <button class="button view-attendance-btn" title="View Attendance History">History</button>
+                        <a href="api/generate_qr.php?id=${student.student_id_num}&download=true" 
+                        download="QR_${student.first_name}_${student.last_name}.png" 
+                        title="Click to download QR code with name">
+                            <img src="api/generate_qr.php?id=${student.student_id_num}" alt="QR Code" class="qr-code-thumb">
+                        </a>                         
+                        <button class="button view-attendance-btn" title="View Attendance History">History</button>
                          <button class="button icon-button edit-enrolled-student-btn" title="Edit Student"><span class="material-symbols-outlined">edit</span></button>
-                         <img src="api/generate_qr.php?id=${student.student_id_num}" alt="QR Code" class="qr-code-thumb">
                     </div>
                 </div>`;
             enrolledStudentListContainer.insertAdjacentHTML('beforeend', studentCard);
@@ -144,13 +151,18 @@ document.addEventListener('DOMContentLoaded', () => {
         document.getElementById('add-student-to-class-btn').addEventListener('click', () => openStudentModal());
         document.getElementById('import-students-btn').addEventListener('click', () => document.getElementById('csv-file-input').click());
         document.getElementById('delete-student-in-modal-btn').addEventListener('click', handleDeleteStudentInModal);
+        document.getElementById('preview-report-btn').addEventListener('click', handlePreviewReport);
+        document.getElementById('download-report-btn').addEventListener('click', handleDownloadReport);
+        document.getElementById('download-history-btn').addEventListener('click', handleDownloadHistory);
+
         classModal.addEventListener('click', e => { if (e.target.id === 'class-modal' || e.target.id === 'cancel-class-modal') classModal.style.display = 'none'; });
         studentModal.addEventListener('click', e => { if (e.target.id === 'student-modal' || e.target.id === 'cancel-student-modal') studentModal.style.display = 'none'; });
         attendanceModal.addEventListener('click', e => { if (e.target.id === 'student-attendance-modal' || e.target.id === 'close-attendance-modal') attendanceModal.style.display = 'none'; });
+        
         classForm.addEventListener('submit', handleClassForm);
         studentForm.addEventListener('submit', handleStudentForm);
-        document.getElementById('report-export-form').addEventListener('submit', handleReportExport);
         document.getElementById('csv-file-input').addEventListener('change', handleCsvImport);
+        
         classListContainer.addEventListener('click', handleClassListClick);
         enrolledStudentListContainer.addEventListener('click', handleEnrolledStudentListClick);
         document.getElementById('start-scan-btn').addEventListener('click', toggleScanner);
@@ -249,19 +261,21 @@ document.addEventListener('DOMContentLoaded', () => {
         const card = e.target.closest('.student-card');
         if (!card) return;
         const studentInfo = JSON.parse(card.dataset.studentInfo);
-
         if (e.target.closest('.view-attendance-btn')) {
+            currentStudentForHistory = studentInfo; 
             try {
                 const data = await apiFetch(`api/attendance.php?action=get_student_attendance_for_class&student_id=${studentInfo.id}&class_id=${currentClassId}`);
                 if (data.success) {
                     const list = document.getElementById('student-attendance-list');
                     const title = document.getElementById('student-attendance-title');
                     title.textContent = `Attendance for ${studentInfo.first_name} ${studentInfo.last_name}`;
-                    list.innerHTML = '';
                     if (data.records.length > 0) {
+                        let tableHTML = `<table class="data-table"><thead><tr><th>Date</th><th>Time</th><th>Status</th></tr></thead><tbody>`;
                         data.records.forEach(rec => {
-                            list.innerHTML += `<div class="attendance-record"><span>${rec.attendance_date} at ${rec.attendance_time}</span><span class="status-${rec.status.toLowerCase()}">${rec.status}</span></div>`;
+                            tableHTML += `<tr><td>${rec.attendance_date}</td><td>${rec.attendance_time}</td><td><span class="status-${rec.status.toLowerCase()}">${rec.status}</span></td></tr>`;
                         });
+                        tableHTML += `</tbody></table>`;
+                        list.innerHTML = tableHTML;
                     } else {
                         list.innerHTML = '<p>No attendance records found for this student in this class.</p>';
                     }
@@ -290,6 +304,15 @@ document.addEventListener('DOMContentLoaded', () => {
             } catch (error) { /* Handled by apiFetch */ }
         }
     }
+    
+    function handleDownloadHistory() {
+        if (!currentStudentForHistory || !currentClassId) {
+            showToast('Error: Student or class context lost.', 'error');
+            return;
+        }
+        const url = `api/import_export.php?action=export_student_history&student_id=${currentStudentForHistory.id}&class_id=${currentClassId}`;
+        window.location.href = url;
+    }
 
     async function handleCsvImport(e) {
         const file = e.target.files[0];
@@ -309,12 +332,51 @@ document.addEventListener('DOMContentLoaded', () => {
         e.target.value = '';
     }
     
-    function handleReportExport(e) {
-        e.preventDefault();
+    async function handlePreviewReport() {
+        const startDate = document.getElementById('report-start-date').value;
+        const endDate = document.getElementById('report-end-date').value;
+        const container = document.getElementById('report-preview-container');
+        if (!startDate || !endDate) {
+            showToast('Please select a start and end date.', 'error');
+            return;
+        }
+        container.innerHTML = `<p>Generating report...</p>`;
+        try {
+            const response = await apiFetch(`api/import_export.php?action=get_attendance_report&class_id=${currentClassId}&start_date=${startDate}&end_date=${endDate}`);
+            if (response.success) {
+                const report = response.report;
+                if (!report.students || report.students.length === 0) {
+                    container.innerHTML = `<p>No enrolled students or no scheduled class days were found for the selected date range.</p>`;
+                    return;
+                }
+                let tableHTML = `<table class="data-table"><thead><tr><th>Name</th>`;
+                report.dates.forEach(date => {
+                    tableHTML += `<th>${date}</th>`;
+                });
+                tableHTML += `<th>Total Attendance</th></tr></thead><tbody>`;
+                report.students.forEach(studentRow => {
+                    tableHTML += `<tr><td>${studentRow.name}</td>`;
+                    report.dates.forEach(date => {
+                        const status = studentRow.data[date] || 'N/A';
+                        tableHTML += `<td class="status-${status.toLowerCase()}">${status}</td>`;
+                    });
+                    tableHTML += `<td>${studentRow.summary}</td></tr>`;
+                });
+                tableHTML += `</tbody></table>`;
+                container.innerHTML = tableHTML;
+            } else {
+                 container.innerHTML = `<p>Error: ${response.message}</p>`;
+            }
+        } catch (error) {
+            container.innerHTML = `<p>Could not load report preview. A server error occurred.</p>`;
+        }
+    }
+
+    function handleDownloadReport() {
         const startDate = document.getElementById('report-start-date').value;
         const endDate = document.getElementById('report-end-date').value;
         if (!startDate || !endDate) {
-            showToast('Please select a start and end date.', 'error');
+            showToast('Please select a start and end date to download.', 'error');
             return;
         }
         window.location.href = `api/import_export.php?action=export_attendance&class_id=${currentClassId}&start_date=${startDate}&end_date=${endDate}`;
@@ -350,12 +412,11 @@ document.addEventListener('DOMContentLoaded', () => {
     async function stopScanner() {
         if (!isScannerActive) return;
         try {
-            // Check if the scanner is in a state that can be cleared.
-            if (html5QrcodeScanner.getState() === Html5QrcodeScannerState.SCANNING) {
+            if (html5QrcodeScanner.getState() === 2) { // 2 is SCANNING state
                await html5QrcodeScanner.clear();
             }
         } catch (error) {
-            console.warn("Error stopping the scanner, but proceeding with UI reset.", error);
+            console.warn("Error stopping the scanner (may be benign).", error);
         }
         qrReaderDiv.style.display = 'none';
         startScanBtn.textContent = 'Start Scanning';

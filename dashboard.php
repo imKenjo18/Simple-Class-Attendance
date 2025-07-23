@@ -55,17 +55,13 @@ require_once 'includes/header.php';
                 <div class="section-header">
                     <h3>Enrolled Students</h3>
                     <div class="button-group">
-                        <!-- ** THIS IS THE FIX ** -->
-                        <!-- The ID is now 'add-student-to-class-btn' and the text is 'Add Student' -->
                         <button id="add-student-to-class-btn" class="button icon-button">
                             <span class="material-symbols-outlined">person_add</span> Add Student
                         </button>
                         <button id="import-students-btn" class="button">Import & Enroll CSV</button>
                     </div>
                 </div>
-                <div id="enrolled-student-list-container" class="list-container">
-                    <!-- Enrolled student cards will be loaded here -->
-                </div>
+                <div id="enrolled-student-list-container" class="list-container"></div>
             </section>
         </div>
 
@@ -73,8 +69,8 @@ require_once 'includes/header.php';
         <div id="tab-reports" class="tab-pane">
             <section id="reporting-section">
                 <h3>Generate Attendance Report</h3>
-                <p>Select a date range to download a CSV report for this class.</p>
-                <form id="report-export-form">
+                <p>Select a date range, then preview the data or download it as a CSV file.</p>
+                <form id="report-form">
                     <div class="form-group-inline">
                          <div class="form-group">
                             <label for="report-start-date">Start Date</label>
@@ -85,14 +81,17 @@ require_once 'includes/header.php';
                             <input type="date" id="report-end-date" name="end_date" required>
                         </div>
                     </div>
-                    <button type="submit" class="button primary">Download Report</button>
+                    <div class="button-group">
+                        <button type="button" id="preview-report-btn" class="button primary">Preview Report</button>
+                        <button type="button" id="download-report-btn" class="button">Download CSV</button>
+                    </div>
                 </form>
+                <div id="report-preview-container"></div>
             </section>
         </div>
     </div>
 </div>
 
-<!-- This input is used by the 'Import & Enroll' button -->
 <input type="file" id="csv-file-input" accept=".csv" style="display: none;">
 
 <?php

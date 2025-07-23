@@ -9,6 +9,10 @@
     <!--                       MODALS                       -->
     <!-- ================================================== -->
 
+    <div id="scanner-overlay" class="modal-overlay" style="display: none;">
+        <!-- The #attendance-taker section will be moved here by JavaScript when scanning starts -->
+    </div>
+
     <!-- Add/Edit Class Modal -->
     <div id="class-modal" class="modal-overlay" style="display: none;">
         <div class="modal-content">

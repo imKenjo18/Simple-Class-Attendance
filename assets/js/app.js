@@ -1,12 +1,13 @@
 /**
  * Main JavaScript file for the Class Attendance Dashboard.
- * FINAL CLEANED VERSION with all features and fixes.
+ * FINAL CLEANED VERSION with all features including Scanner Centering.
  */
 document.addEventListener('DOMContentLoaded', () => {
 
     // --- STATE MANAGEMENT ---
     let currentClassId = null;
     let currentStudentForHistory = null; // Holds info for the history download
+    let originalScannerParent = null; // To remember where the scanner section belongs
 
     // --- GLOBAL DOM ELEMENT SELECTORS ---
     const classListView = document.getElementById('class-list-view');
@@ -18,6 +19,8 @@ document.addEventListener('DOMContentLoaded', () => {
     const attendanceModal = document.getElementById('student-attendance-modal');
     const classListContainer = document.getElementById('class-list-container');
     const enrolledStudentListContainer = document.getElementById('enrolled-student-list-container');
+    const scannerOverlay = document.getElementById('scanner-overlay');
+    const attendanceTakerSection = document.getElementById('attendance-taker');
     
     // --- INITIALIZATION ---
     function initializeDashboard() {
@@ -135,10 +138,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // --- EVENT LISTENERS SETUP ---
     function setupEventListeners() {
-        document.getElementById('back-to-classes-link').addEventListener('click', (e) => {
-            e.preventDefault();
-            showClassListView();
-        });
+        document.getElementById('back-to-classes-link').addEventListener('click', (e) => { e.preventDefault(); showClassListView(); });
         document.querySelector('.tab-nav').addEventListener('click', e => {
             if (e.target.tagName === 'BUTTON') {
                 document.querySelectorAll('.tab-button').forEach(btn => btn.classList.remove('active'));
@@ -154,15 +154,17 @@ document.addEventListener('DOMContentLoaded', () => {
         document.getElementById('preview-report-btn').addEventListener('click', handlePreviewReport);
         document.getElementById('download-report-btn').addEventListener('click', handleDownloadReport);
         document.getElementById('download-history-btn').addEventListener('click', handleDownloadHistory);
-
+        scannerOverlay.addEventListener('click', e => {
+            if (e.target.id === 'scanner-overlay') {
+                stopScanner();
+            }
+        });
         classModal.addEventListener('click', e => { if (e.target.id === 'class-modal' || e.target.id === 'cancel-class-modal') classModal.style.display = 'none'; });
         studentModal.addEventListener('click', e => { if (e.target.id === 'student-modal' || e.target.id === 'cancel-student-modal') studentModal.style.display = 'none'; });
         attendanceModal.addEventListener('click', e => { if (e.target.id === 'student-attendance-modal' || e.target.id === 'close-attendance-modal') attendanceModal.style.display = 'none'; });
-        
         classForm.addEventListener('submit', handleClassForm);
         studentForm.addEventListener('submit', handleStudentForm);
         document.getElementById('csv-file-input').addEventListener('change', handleCsvImport);
-        
         classListContainer.addEventListener('click', handleClassListClick);
         enrolledStudentListContainer.addEventListener('click', handleEnrolledStudentListClick);
         document.getElementById('start-scan-btn').addEventListener('click', toggleScanner);
@@ -402,6 +404,9 @@ document.addEventListener('DOMContentLoaded', () => {
             showToast('Error: No class is selected for attendance.', 'error');
             return;
         }
+        originalScannerParent = attendanceTakerSection.parentNode;
+        scannerOverlay.appendChild(attendanceTakerSection);
+        scannerOverlay.style.display = 'flex';
         qrReaderDiv.style.display = 'block';
         startScanBtn.textContent = 'Stop Scanning';
         startScanBtn.classList.add('destructive');
@@ -417,6 +422,11 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         } catch (error) {
             console.warn("Error stopping the scanner (may be benign).", error);
+        }
+        scannerOverlay.style.display = 'none';
+        if (originalScannerParent) {
+            originalScannerParent.appendChild(attendanceTakerSection);
+            originalScannerParent = null;
         }
         qrReaderDiv.style.display = 'none';
         startScanBtn.textContent = 'Start Scanning';

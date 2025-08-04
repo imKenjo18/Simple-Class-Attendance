@@ -1,5 +1,6 @@
 {
     "require": {
-        "endroid/qr-code": "^4.0"
+        "endroid/qr-code": "^4.0",
+        "twilio/sdk": "^8.7"
     }
 }

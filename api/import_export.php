@@ -35,39 +35,33 @@ $action = $_REQUEST['action'] ?? '';
  * @return array An array containing the report headers (dates) and student data rows.
  */
 function generateAttendanceReportData(PDO $pdo, int $class_id, string $start_date, string $end_date): array {
-    // 1. Get class schedule (e.g., 'MWF', 'TTH', 'S')
-    $stmt = $pdo->prepare("SELECT day_of_week FROM classes WHERE id = ?");
+    // 1. Try custom schedule days
+    $stmt = $pdo->prepare("SELECT day_of_week FROM class_schedules WHERE class_id = ?");
     $stmt->execute([$class_id]);
-    $class_schedule = $stmt->fetchColumn();
-    if (!$class_schedule) {
-        return ['dates' => [], 'students' => []]; // Class not found
+    $custom_days = $stmt->fetchAll(PDO::FETCH_COLUMN);
+
+    if (!$custom_days || count($custom_days) === 0) {
+        return ['dates' => [], 'students' => []];
     }
 
-    // 2. Calculate all valid class dates within the specified range based on the schedule
     $valid_class_dates = [];
-    $schedule_map = [
-        'MWF' => ['Monday', 'Wednesday', 'Friday'],
-        'TTH' => ['Tuesday', 'Thursday'],
-        'S'   => ['Saturday']
-    ];
     $period = new DatePeriod(
         new DateTime($start_date),
         new DateInterval('P1D'),
-        (new DateTime($end_date))->modify('+1 day') // Important: Include the end date in the period
+        (new DateTime($end_date))->modify('+1 day')
     );
     foreach ($period as $date) {
-        if (in_array($date->format('l'), $schedule_map[$class_schedule])) {
+        if (in_array($date->format('l'), $custom_days, true)) {
             $valid_class_dates[] = $date->format('Y-m-d');
         }
     }
-
     if (empty($valid_class_dates)) {
-        return ['dates' => [], 'students' => []]; // No scheduled class days in this range
+        return ['dates' => [], 'students' => []];
     }
 
     // 3. Get all students enrolled in the class, sorted alphabetically by last name
     $stmt = $pdo->prepare("
-        SELECT s.id, s.first_name, s.last_name 
+        SELECT s.id, s.first_name, s.last_name
         FROM students s
         JOIN class_enrollment ce ON s.id = ce.student_id
         WHERE ce.class_id = ?
@@ -78,13 +72,13 @@ function generateAttendanceReportData(PDO $pdo, int $class_id, string $start_dat
 
     // 4. Get all existing attendance records for this class within the date range
     $stmt = $pdo->prepare("
-        SELECT student_id, attendance_date, status 
-        FROM attendance_records 
+        SELECT student_id, attendance_date, status
+        FROM attendance_records
         WHERE class_id = ? AND attendance_date BETWEEN ? AND ?
     ");
     $stmt->execute([$class_id, $start_date, $end_date]);
     $records_raw = $stmt->fetchAll(PDO::FETCH_ASSOC);
-    
+
     // Re-index records into a map for fast O(1) lookups: [student_id][date] => status
     $records_map = [];
     foreach ($records_raw as $record) {
@@ -98,7 +92,7 @@ function generateAttendanceReportData(PDO $pdo, int $class_id, string $start_dat
     foreach ($students as $student) {
         $present_count = 0;
         $row_data = [];
-        
+
         foreach ($valid_class_dates as $date) {
             // If a record exists for this student on this date, use its status
             if (isset($records_map[$student['id']][$date])) {
@@ -155,13 +149,13 @@ try {
             }
 
             $report = generateAttendanceReportData($pdo, $class_id, $start_date, $end_date);
-            
+
             $filename = "Attendance_Report_{$start_date}_to_{$end_date}.csv";
             header('Content-Type: text/csv');
             header('Content-Disposition: attachment; filename="' . $filename . '"');
-            
+
             $output = fopen('php://output', 'w');
-            
+
             $header = array_merge(['Name'], $report['dates'], ['Total Attendance']);
             fputcsv($output, $header, ',', '"', '\\');
 
@@ -173,7 +167,7 @@ try {
                 $csv_row[] = $student_row['summary'];
                 fputcsv($output, $csv_row, ',', '"', '\\');
             }
-            
+
             fclose($output);
             exit;
 
@@ -195,7 +189,7 @@ try {
             $class_name_safe = preg_replace('/[^a-zA-Z0-9_-]/', '', $class['class_name']);
             $student_name_safe = preg_replace('/[^a-zA-Z0-9_-]/', '', $student['first_name'] . '_' . $student['last_name']);
             $filename = "History_{$student_name_safe}_{$class_name_safe}.csv";
-            
+
             header('Content-Type: text/csv');
             header('Content-Disposition: attachment; filename="' . $filename . '"');
 
@@ -210,7 +204,7 @@ try {
             }
             fclose($output);
             exit;
-            
+
         case 'import_students':
             header('Content-Type: application/json');
             $class_id = $_POST['class_id'] ?? null;
@@ -225,7 +219,7 @@ try {
             }
 
             $file_path = $_FILES['student_csv']['tmp_name'];
-            
+
             // Use a transaction to ensure the import is atomic (all or nothing)
             $pdo->beginTransaction();
             try {
@@ -257,7 +251,7 @@ try {
                     // Step 1: Find student by ID number or create them if they don't exist.
                     $find_student_stmt->execute([$student_id_num]);
                     $student = $find_student_stmt->fetch(PDO::FETCH_ASSOC);
-                    
+
                     $student_pk_id = null;
                     if ($student) {
                         // Student already exists, just get their primary key
@@ -268,7 +262,7 @@ try {
                         $student_pk_id = $pdo->lastInsertId();
                         $newly_imported_count++;
                     }
-                    
+
                     // Step 2: Enroll the student (found or newly created) into the target class.
                     $enroll_stmt->execute([$class_id, $student_pk_id]);
                     // Check if a row was actually inserted (i.e., they weren't already enrolled)
@@ -280,7 +274,7 @@ try {
                 // If all rows processed without error, commit the changes to the database.
                 $pdo->commit();
                 echo json_encode([
-                    'success' => true, 
+                    'success' => true,
                     'message' => "Import complete! Added {$newly_imported_count} new students and enrolled {$enrolled_count} into the class."
                 ]);
 
@@ -295,7 +289,7 @@ try {
                 }
             }
             exit;
-            
+
         default:
             http_response_code(400);
             header('Content-Type: application/json');

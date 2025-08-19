@@ -52,9 +52,9 @@ CREATE TABLE `classes` (
   `teacher_id` int(11) UNSIGNED NOT NULL,
   `class_name` varchar(100) COLLATE utf8mb4_unicode_ci NOT NULL,
   `unit_code` varchar(20) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
-  `day_of_week` enum('MWF','TTH','S') COLLATE utf8mb4_unicode_ci NOT NULL,
-  `start_time` time NOT NULL,
-  `end_time` time NOT NULL,
+  `day_of_week` enum('MWF','TTH','S') COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `start_time` time DEFAULT NULL,
+  `end_time` time DEFAULT NULL,
   `created_at` timestamp NOT NULL DEFAULT current_timestamp(),
   PRIMARY KEY (`id`),
   KEY `teacher_id` (`teacher_id`)
@@ -121,6 +121,23 @@ CREATE TABLE `attendance_records` (
 -- --------------------------------------------------------
 
 --
+-- Table structure for table `class_schedules`
+-- Per-day schedules for classes
+--
+CREATE TABLE IF NOT EXISTS `class_schedules` (
+    `id` int(11) UNSIGNED NOT NULL AUTO_INCREMENT,
+    `class_id` INT(11) UNSIGNED NOT NULL,
+    `day_of_week` ENUM('Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday') NOT NULL,
+    `start_time` TIME NOT NULL,
+    `end_time` TIME NOT NULL,
+    PRIMARY KEY (`id`),
+    UNIQUE KEY `uniq_class_day` (`class_id`, `day_of_week`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+
+-- --------------------------------------------------------
+
+--
 -- Foreign Key Constraints for the tables
 -- These are added at the end to ensure all tables exist first.
 -- ON DELETE CASCADE ensures that if a parent record (like a class or student) is deleted,
@@ -129,6 +146,15 @@ CREATE TABLE `attendance_records` (
 
 ALTER TABLE `classes`
   ADD CONSTRAINT `fk_class_teacher` FOREIGN KEY (`teacher_id`) REFERENCES `teachers` (`id`) ON DELETE CASCADE ON UPDATE CASCADE;
+
+ALTER TABLE `class_schedules`
+  ADD CONSTRAINT `fk_schedule_class` FOREIGN KEY (`class_id`) REFERENCES `classes` (`id`) ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- Ensure legacy schedule columns allow NULLs (safe to run repeatedly)
+ALTER TABLE `classes`
+  MODIFY `day_of_week` enum('MWF','TTH','S') NULL DEFAULT NULL,
+  MODIFY `start_time` time NULL DEFAULT NULL,
+  MODIFY `end_time` time NULL DEFAULT NULL;
 
 ALTER TABLE `class_enrollment`
   ADD CONSTRAINT `fk_enrollment_class` FOREIGN KEY (`class_id`) REFERENCES `classes` (`id`) ON DELETE CASCADE ON UPDATE CASCADE,

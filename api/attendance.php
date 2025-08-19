@@ -1,4 +1,6 @@
 <?php
+
+use Twilio\Rest\Client;
 /**
  * API endpoint for handling attendance records.
  * Supports marking students present and fetching attendance history.
@@ -7,7 +9,7 @@
 
 session_start();
 
-date_default_timezone_set('Asia/Manila'); 
+date_default_timezone_set('Asia/Manila');
 
 // 1. SECURITY: Ensure a teacher is logged in for all actions.
 if (!isset($_SESSION['teacher_id'])) {
@@ -41,14 +43,14 @@ try {
 
             $student_id_num = $_POST['student_id_num'];
             $class_id = $_POST['class_id'];
-            
+
             // --- GET CURRENT TIME & DAY ---
             $current_date = date('Y-m-d');
             $current_time = date('H:i:s');
             $current_day_of_week = date('l'); // e.g., "Monday"
 
             // --- FETCH STUDENT AND CLASS DATA ---
-            $stmt_student = $pdo->prepare("SELECT id, first_name, last_name FROM students WHERE student_id_num = ?");
+            $stmt_student = $pdo->prepare("SELECT id, first_name, last_name, phone FROM students WHERE student_id_num = ?");
             $stmt_student->execute([$student_id_num]);
             $student = $stmt_student->fetch(PDO::FETCH_ASSOC);
 
@@ -59,7 +61,7 @@ try {
             }
             $student_pk_id = $student['id'];
 
-            $stmt_class = $pdo->prepare("SELECT start_time, end_time, day_of_week FROM classes WHERE id = ? AND teacher_id = ?");
+            $stmt_class = $pdo->prepare("SELECT id FROM classes WHERE id = ? AND teacher_id = ?");
             $stmt_class->execute([$class_id, $teacher_id]);
             $class = $stmt_class->fetch(PDO::FETCH_ASSOC);
 
@@ -70,45 +72,58 @@ try {
             }
 
             // --- BUSINESS LOGIC CHECKS ---
-            
-            // 1. Check if the class is scheduled for today (Handles MWF, TTH, S)
-            $schedule_map = [
-                'MWF' => ['Monday', 'Wednesday', 'Friday'],
-                'TTH' => ['Tuesday', 'Thursday'],
-                'S'   => ['Saturday']
-            ];
-            $class_schedule_code = $class['day_of_week'];
+            // Require custom schedule for today
+            $stmt_sched = $pdo->prepare("SELECT start_time, end_time FROM class_schedules WHERE class_id = ? AND day_of_week = ?");
+            $stmt_sched->execute([$class_id, $current_day_of_week]); // $current_day_of_week like 'Monday'
+            $custom = $stmt_sched->fetch(PDO::FETCH_ASSOC);
 
-            if (!isset($schedule_map[$class_schedule_code]) || !in_array($current_day_of_week, $schedule_map[$class_schedule_code])) {
+            if (!$custom) {
                 http_response_code(400);
-                echo json_encode(['success' => false, 'message' => "This class is not scheduled for today ({$current_day_of_week}). It runs on {$class_schedule_code}."]);
+                echo json_encode(['success' => false, 'message' => "No schedule set for today ({$current_day_of_week}). Configure custom schedules in the class settings."]);
                 exit;
             }
 
-            // 2. Check if the current time is within the class schedule
-            if ($current_time < $class['start_time'] || $current_time > $class['end_time']) {
+            // Within day and time?
+            if ($current_time < $custom['start_time'] || $current_time > $custom['end_time']) {
                 http_response_code(400);
-                echo json_encode(['success' => false, 'message' => "Attendance can only be taken during class hours ({$class['start_time']} - {$class['end_time']})."]);
+                echo json_encode(['success' => false, 'message' => "Attendance can only be taken during class hours ({$custom['start_time']} - {$custom['end_time']})."]);
                 exit;
             }
-            
+
+            // Determine status: Late if 15+ minutes after start_time, else Present
+            $start_ts = strtotime($custom['start_time']);
+            $current_ts = strtotime($current_time);
+            $late_threshold = $start_ts + (15 * 60); // 15 minutes after start
+            $status_to_set = ($current_ts >= $late_threshold) ? 'Late' : 'Present';
+
             // 3. Check if attendance has already been recorded
-            $stmt_check = $pdo->prepare("SELECT id FROM attendance_records WHERE student_id = ? AND class_id = ? AND attendance_date = ?");
+            $stmt_check = $pdo->prepare("SELECT id, status FROM attendance_records WHERE student_id = ? AND class_id = ? AND attendance_date = ?");
             $stmt_check->execute([$student_pk_id, $class_id, $current_date]);
-            if ($stmt_check->fetch()) {
-                echo json_encode(['success' => true, 'message' => 'Student already marked present today.', 'student_name' => "{$student['first_name']} {$student['last_name']}", 'status' => 'Present']);
+            $existing = $stmt_check->fetch(PDO::FETCH_ASSOC);
+            if ($existing) {
+                $existing_status = $existing['status'] ?? 'Present';
+                echo json_encode(['success' => true, 'message' => "Student already recorded today as {$existing_status}.", 'student_name' => "{$student['first_name']} {$student['last_name']}", 'status' => $existing_status]);
                 exit;
             }
-            
+
             // --- PERFORM INSERTION ---
-            $sql = "INSERT INTO attendance_records (class_id, student_id, attendance_date, attendance_time, status) VALUES (?, ?, ?, ?, 'Present')";
+            $sql = "INSERT INTO attendance_records (class_id, student_id, attendance_date, attendance_time, status) VALUES (?, ?, ?, ?, ?)";
             $stmt_insert = $pdo->prepare($sql);
-            if ($stmt_insert->execute([$class_id, $student_pk_id, $current_date, $current_time])) {
+            if ($stmt_insert->execute([$class_id, $student_pk_id, $current_date, $current_time, $status_to_set])) {
                 updateStudentStatus($pdo, $student_pk_id);
-                echo json_encode(['success' => true, 'message' => 'Attendance marked successfully!', 'student_name' => "{$student['first_name']} {$student['last_name']}", 'status' => 'Present']);
+                $msg = ($status_to_set === 'Late') ? 'Attendance marked: Late.' : 'Attendance marked successfully!';
+                echo json_encode(['success' => true, 'message' => $msg, 'student_name' => "{$student['first_name']} {$student['last_name']}", 'status' => $status_to_set]);
             } else {
                 http_response_code(500);
                 echo json_encode(['success' => false, 'message' => 'Failed to save attendance record.']);
+            }
+
+            $_SESSION['student_first_name'] = $student['first_name'];
+            $_SESSION['student_phone'] = $student['phone'] ?? null;
+            $_SESSION['class_id'] = $class_id;
+
+            if (!empty($_SESSION['student_phone'])) {
+                require_once 'notify.php';
             }
             break;
 
@@ -140,7 +155,7 @@ try {
                     FROM attendance_records
                     WHERE student_id = ? AND class_id = ?
                     ORDER BY attendance_date DESC, attendance_time DESC";
-            
+
             $stmt = $pdo->prepare($sql);
             $stmt->execute([$student_id, $class_id]);
             $records = $stmt->fetchAll(PDO::FETCH_ASSOC);

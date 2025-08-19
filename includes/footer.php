@@ -27,27 +27,54 @@
                     <label for="unit-code">Unit/Code</label>
                     <input type="text" id="unit-code" name="unit_code">
                 </div>
+
                 <div class="form-group">
-                    <label for="day-of-week">Class Schedule</label>
-                    <select id="day-of-week" name="day_of_week" required>
-                        <option value="MWF">MWF (Monday, Wednesday, Friday)</option>
-                        <option value="TTH">TTH (Tuesday, Thursday)</option>
-                        <option value="S">S (Saturday)</option>
-                    </select>
-                </div>
-                <div class="form-group-inline">
-                    <div class="form-group">
-                        <label for="start-time">Start Time</label>
-                        <input type="time" id="start-time" name="start_time" required>
+                    <label>Class Schedule (pick days and times)</label>
+                    <div id="custom-schedule" class="schedule-grid">
+                        <!-- One row per day -->
+                        <div class="day-row">
+                            <label><input type="checkbox" class="day-checkbox" data-day="Sunday"> Sunday</label>
+                            <input type="time" class="day-start" data-day="Sunday" disabled>
+                            <input type="time" class="day-end" data-day="Sunday" disabled>
+                        </div>
+                        <div class="day-row">
+                            <label><input type="checkbox" class="day-checkbox" data-day="Monday"> Monday</label>
+                            <input type="time" class="day-start" data-day="Monday" disabled>
+                            <input type="time" class="day-end" data-day="Monday" disabled>
+                        </div>
+                        <div class="day-row">
+                            <label><input type="checkbox" class="day-checkbox" data-day="Tuesday"> Tuesday</label>
+                            <input type="time" class="day-start" data-day="Tuesday" disabled>
+                            <input type="time" class="day-end" data-day="Tuesday" disabled>
+                        </div>
+                        <div class="day-row">
+                            <label><input type="checkbox" class="day-checkbox" data-day="Wednesday"> Wednesday</label>
+                            <input type="time" class="day-start" data-day="Wednesday" disabled>
+                            <input type="time" class="day-end" data-day="Wednesday" disabled>
+                        </div>
+                        <div class="day-row">
+                            <label><input type="checkbox" class="day-checkbox" data-day="Thursday"> Thursday</label>
+                            <input type="time" class="day-start" data-day="Thursday" disabled>
+                            <input type="time" class="day-end" data-day="Thursday" disabled>
+                        </div>
+                        <div class="day-row">
+                            <label><input type="checkbox" class="day-checkbox" data-day="Friday"> Friday</label>
+                            <input type="time" class="day-start" data-day="Friday" disabled>
+                            <input type="time" class="day-end" data-day="Friday" disabled>
+                        </div>
+                        <div class="day-row">
+                            <label><input type="checkbox" class="day-checkbox" data-day="Saturday"> Saturday</label>
+                            <input type="time" class="day-start" data-day="Saturday" disabled>
+                            <input type="time" class="day-end" data-day="Saturday" disabled>
+                        </div>
                     </div>
-                    <div class="form-group">
-                        <label for="end-time">End Time</label>
-                        <input type="time" id="end-time" name="end_time" required>
-                    </div>
+                    <small>Pick one or more days, then set start and end times for each. Custom schedules are required to take attendance.</small>
                 </div>
+
+
                 <div class="modal-actions">
                     <button type="button" id="cancel-class-modal" class="button">Cancel</button>
-                    <button type="submit" class="button primary">Save Class</button>
+                    <button type="submit" id="save-class-btn" class="button primary"><span class="spinner-inline" style="display:none"></span>Save Class</button>
                 </div>
             </form>
         </div>
@@ -80,7 +107,7 @@
                 <div class="modal-actions">
                     <button type="button" id="delete-student-in-modal-btn" class="button destructive">Delete Student</button>
                     <button type="button" id="cancel-student-modal" class="button">Cancel</button>
-                    <button type="submit" class="button primary">Save Student</button>
+                    <button type="submit" id="save-student-btn" class="button primary"><span class="spinner-inline" style="display:none"></span>Save Student</button>
                 </div>
             </form>
         </div>
@@ -101,6 +128,11 @@
     </div>
 
     <!-- JavaScript libraries and your custom app script -->
+    <!-- Global Loading Overlay -->
+    <div id="loading-overlay" class="loading-overlay" style="display:none;" aria-hidden="true">
+        <div class="spinner" role="status" aria-label="Loading"></div>
+    </div>
+
     <script src="assets/js/html5-qrcode.min.js" type="text/javascript"></script>
     <script src="assets/js/app.js"></script>
 </body>

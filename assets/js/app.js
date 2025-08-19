@@ -21,7 +21,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const enrolledStudentListContainer = document.getElementById('enrolled-student-list-container');
     const scannerOverlay = document.getElementById('scanner-overlay');
     const attendanceTakerSection = document.getElementById('attendance-taker');
-    
+
     // --- INITIALIZATION ---
     function initializeDashboard() {
         showClassListView();
@@ -65,14 +65,14 @@ document.addEventListener('DOMContentLoaded', () => {
             throw error;
         }
     }
-    
+
     async function loadClasses() {
         try {
             const classes = await apiFetch('api/classes.php?action=get_classes');
             renderClasses(classes);
         } catch (e) { /* handled by apiFetch */ }
     }
-    
+
     async function loadEnrolledStudents() {
         if (!currentClassId) return;
         try {
@@ -89,13 +89,14 @@ document.addEventListener('DOMContentLoaded', () => {
             return;
         }
         classes.forEach(cls => {
-            const startTime = cls.start_time.substring(0, 5);
-            const endTime = cls.end_time.substring(0, 5);
+            const subtitle = cls.schedule_summary && cls.schedule_summary.length > 0
+                ? cls.schedule_summary
+                : 'No schedule set';
             const classCard = `
                 <div class="card class-card" data-class-info='${JSON.stringify(cls)}'>
                     <div class="card-content">
-                        <h4>${cls.class_name} (${cls.unit_code})</h4>
-                        <p>${cls.day_of_week}, ${startTime} - ${endTime}</p>
+                        <h4>${cls.class_name} (${cls.unit_code || ''})</h4>
+                        <p>${subtitle}</p>
                     </div>
                     <div class="card-actions">
                         <button class="button icon-button edit-class-btn" title="Edit Class"><span class="material-symbols-outlined">edit</span></button>
@@ -123,11 +124,11 @@ document.addEventListener('DOMContentLoaded', () => {
                         </div>
                     </div>
                     <div class="card-actions">
-                        <a href="api/generate_qr.php?id=${student.student_id_num}&download=true" 
-                        download="QR_${student.first_name}_${student.last_name}.png" 
+                        <a href="api/generate_qr.php?id=${student.student_id_num}&download=true"
+                        download="QR_${student.first_name}_${student.last_name}.png"
                         title="Click to download QR code with name">
                             <img src="api/generate_qr.php?id=${student.student_id_num}" alt="QR Code" class="qr-code-thumb">
-                        </a>                         
+                        </a>
                         <button class="button view-attendance-btn" title="View Attendance History">History</button>
                          <button class="button icon-button edit-enrolled-student-btn" title="Edit Student"><span class="material-symbols-outlined">edit</span></button>
                     </div>
@@ -136,8 +137,68 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
+    const DAYS = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
+
+    function getScheduleFromForm() {
+        const schedule = [];
+        DAYS.forEach(day => {
+            const cb = document.querySelector(`.day-checkbox[data-day="${day}"]`);
+            const start = document.querySelector(`.day-start[data-day="${day}"]`);
+            const end = document.querySelector(`.day-end[data-day="${day}"]`);
+            if (cb && cb.checked && start.value && end.value) {
+                schedule.push({ day_of_week: day, start_time: start.value, end_time: end.value });
+            }
+        });
+        return schedule;
+    }
+
+    function clearScheduleForm() {
+        DAYS.forEach(day => {
+            const cb = document.querySelector(`.day-checkbox[data-day="${day}"]`);
+            const start = document.querySelector(`.day-start[data-day="${day}"]`);
+            const end = document.querySelector(`.day-end[data-day="${day}"]`);
+            if (cb && start && end) {
+                cb.checked = false;
+                start.value = '';
+                end.value = '';
+                start.disabled = true;
+                end.disabled = true;
+            }
+        });
+    }
+
+    function populateScheduleForm(schedule) {
+        clearScheduleForm();
+        (schedule || []).forEach(row => {
+            const day = row.day_of_week;
+            const cb = document.querySelector(`.day-checkbox[data-day="${day}"]`);
+            const start = document.querySelector(`.day-start[data-day="${day}"]`);
+            const end = document.querySelector(`.day-end[data-day="${day}"]`);
+            if (cb && start && end) {
+                cb.checked = true;
+                start.disabled = false;
+                end.disabled = false;
+                start.value = row.start_time?.substring(0,5) || '';
+                end.value = row.end_time?.substring(0,5) || '';
+            }
+        });
+    }
+
     // --- EVENT LISTENERS SETUP ---
     function setupEventListeners() {
+        document.getElementById('class-modal')?.addEventListener('change', (e) => {
+            if (!e.target || !e.target.matches('.day-checkbox')) return;
+            const cb = e.target;
+            const day = cb.dataset.day;
+            const start = document.querySelector(`.day-start[data-day="${day}"]`);
+            const end = document.querySelector(`.day-end[data-day="${day}"]`);
+            if (start && end) {
+                start.disabled = !cb.checked;
+                end.disabled = !cb.checked;
+                if (!cb.checked) { start.value = ''; end.value = ''; }
+            }
+        });
+
         document.getElementById('back-to-classes-link').addEventListener('click', (e) => { e.preventDefault(); showClassListView(); });
         document.querySelector('.tab-nav').addEventListener('click', e => {
             if (e.target.tagName === 'BUTTON') {
@@ -169,19 +230,26 @@ document.addEventListener('DOMContentLoaded', () => {
         enrolledStudentListContainer.addEventListener('click', handleEnrolledStudentListClick);
         document.getElementById('start-scan-btn').addEventListener('click', toggleScanner);
     }
-    
+
     // --- EVENT HANDLER FUNCTIONS ---
     function openClassModal(classInfo = null) {
         classForm.reset();
+        clearScheduleForm();
         document.getElementById('class-id').value = '';
         if (classInfo) {
             document.getElementById('class-modal-title').textContent = 'Edit Class';
             document.getElementById('class-id').value = classInfo.id;
             document.getElementById('class-name').value = classInfo.class_name;
             document.getElementById('unit-code').value = classInfo.unit_code;
-            document.getElementById('day-of-week').value = classInfo.day_of_week;
-            document.getElementById('start-time').value = classInfo.start_time;
-            document.getElementById('end-time').value = classInfo.end_time;
+
+            // Fetch custom schedule for this class and populate
+            fetch(`api/classes.php?action=get_class_schedule&class_id=${classInfo.id}`)
+                .then(r => r.ok ? r.json() : Promise.reject())
+                .then(data => {
+                    if (data.success && Array.isArray(data.schedule)) {
+                        populateScheduleForm(data.schedule);
+                    }
+                }).catch(() => {});
         } else {
             document.getElementById('class-modal-title').textContent = 'Add New Class';
         }
@@ -193,6 +261,15 @@ document.addEventListener('DOMContentLoaded', () => {
         const action = document.getElementById('class-id').value ? 'update_class' : 'add_class';
         const formData = new FormData(classForm);
         formData.append('action', action);
+
+        // Always append schedule_json (even if empty) so backend can clear schedules
+        const schedule = getScheduleFromForm();
+        formData.append('schedule_json', JSON.stringify(schedule));
+
+        const btn = document.getElementById('save-class-btn');
+        const spin = btn?.querySelector('.spinner-inline');
+        if (btn) { btn.classList.add('is-loading'); btn.disabled = true; }
+        if (spin) { spin.style.display = 'inline-block'; }
         try {
             const result = await apiFetch('api/classes.php', { method: 'POST', body: formData });
             if (result.success) {
@@ -201,6 +278,10 @@ document.addEventListener('DOMContentLoaded', () => {
                 loadClasses();
             }
         } catch (error) { /* Handled by apiFetch */ }
+        finally {
+            if (spin) { spin.style.display = 'none'; }
+            if (btn) { btn.classList.remove('is-loading'); btn.disabled = false; }
+        }
     }
 
     function handleClassListClick(e) {
@@ -220,7 +301,7 @@ document.addEventListener('DOMContentLoaded', () => {
             showClassDetailView(classInfo);
         }
     }
-    
+
     function openStudentModal(studentInfo = null) {
         studentForm.reset();
         const deleteBtn = document.getElementById('delete-student-in-modal-btn');
@@ -239,7 +320,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
         studentModal.style.display = 'flex';
     }
-    
+
     async function handleStudentForm(e) {
         e.preventDefault();
         const studentId = document.getElementById('student-id').value;
@@ -249,6 +330,10 @@ document.addEventListener('DOMContentLoaded', () => {
         if (action === 'add_and_enroll_student') {
             formData.append('class_id', currentClassId);
         }
+        const btn = document.getElementById('save-student-btn');
+        const spin = btn?.querySelector('.spinner-inline');
+        if (btn) { btn.classList.add('is-loading'); btn.disabled = true; }
+        if (spin) { spin.style.display = 'inline-block'; }
         try {
             const result = await apiFetch('api/students.php', { method: 'POST', body: formData });
             if (result.success) {
@@ -257,6 +342,10 @@ document.addEventListener('DOMContentLoaded', () => {
                 loadEnrolledStudents();
             }
         } catch (error) { /* Handled by apiFetch */ }
+        finally {
+            if (spin) { spin.style.display = 'none'; }
+            if (btn) { btn.classList.remove('is-loading'); btn.disabled = false; }
+        }
     }
 
     async function handleEnrolledStudentListClick(e) {
@@ -264,7 +353,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!card) return;
         const studentInfo = JSON.parse(card.dataset.studentInfo);
         if (e.target.closest('.view-attendance-btn')) {
-            currentStudentForHistory = studentInfo; 
+            currentStudentForHistory = studentInfo;
             try {
                 const data = await apiFetch(`api/attendance.php?action=get_student_attendance_for_class&student_id=${studentInfo.id}&class_id=${currentClassId}`);
                 if (data.success) {
@@ -306,7 +395,7 @@ document.addEventListener('DOMContentLoaded', () => {
             } catch (error) { /* Handled by apiFetch */ }
         }
     }
-    
+
     function handleDownloadHistory() {
         if (!currentStudentForHistory || !currentClassId) {
             showToast('Error: Student or class context lost.', 'error');
@@ -333,7 +422,7 @@ document.addEventListener('DOMContentLoaded', () => {
         } catch(error) { /* Handled by apiFetch */ }
         e.target.value = '';
     }
-    
+
     async function handlePreviewReport() {
         const startDate = document.getElementById('report-start-date').value;
         const endDate = document.getElementById('report-end-date').value;
@@ -390,7 +479,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const html5QrcodeScanner = new Html5QrcodeScanner("qr-reader", { fps: 10, qrbox: { width: 250, height: 250 } });
     const qrReaderDiv = document.getElementById('qr-reader');
     const startScanBtn = document.getElementById('start-scan-btn');
-    
+
     function toggleScanner() {
         if (isScannerActive) {
             stopScanner();
@@ -398,7 +487,7 @@ document.addEventListener('DOMContentLoaded', () => {
             startScanner();
         }
     }
-    
+
     function startScanner() {
         if (!currentClassId) {
             showToast('Error: No class is selected for attendance.', 'error');
@@ -413,7 +502,7 @@ document.addEventListener('DOMContentLoaded', () => {
         isScannerActive = true;
         html5QrcodeScanner.render(onScanSuccess, onScanError);
     }
-    
+
     async function stopScanner() {
         if (!isScannerActive) return;
         try {
@@ -433,7 +522,7 @@ document.addEventListener('DOMContentLoaded', () => {
         startScanBtn.classList.remove('destructive');
         isScannerActive = false;
     }
-    
+
     async function onScanSuccess(decodedText) {
         if (isScanProcessing) return;
         isScanProcessing = true;
@@ -453,7 +542,7 @@ document.addEventListener('DOMContentLoaded', () => {
             setTimeout(() => { isScanProcessing = false; }, 1500);
         }
     }
-    
+
     function onScanError(errorMessage) { /* Can be ignored. */ }
 
     // --- UTILITY ---
@@ -468,7 +557,7 @@ document.addEventListener('DOMContentLoaded', () => {
             toast.addEventListener('transitionend', () => toast.remove());
         }, 3000);
     }
-    
+
     // --- KICK EVERYTHING OFF ---
     initializeDashboard();
 });

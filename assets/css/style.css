@@ -76,6 +76,20 @@ section {
 .button.icon-button .material-symbols-outlined {
     margin-right: 8px;
 }
+/* Inline spinner for buttons */
+.button .spinner-inline {
+    display: inline-block;
+    width: 16px;
+    height: 16px;
+    border: 2px solid rgba(0,0,0,0.2);
+    border-top-color: currentColor;
+    border-radius: 50%;
+    margin-right: 8px;
+    vertical-align: text-bottom;
+    animation: btn-spin 0.9s linear infinite;
+}
+.button.is-loading { opacity: 0.8; pointer-events: none; }
+@keyframes btn-spin { to { transform: rotate(360deg); } }
 /* Modal Styles */
 .modal-overlay {
     position: fixed;
@@ -88,6 +102,7 @@ section {
     justify-content: center;
     align-items: center;
     z-index: 1000;
+    overflow: auto; /* allow page to scroll if content is taller than viewport */
 }
 .modal-content {
     background: var(--md-sys-color-background);
@@ -96,6 +111,10 @@ section {
     width: 90%;
     max-width: 500px;
     box-shadow: 0 4px 8px 3px rgba(0,0,0,0.15);
+    max-height: 90vh;          /* keep modal within the viewport height */
+    overflow-y: auto;          /* scroll long modal content */
+    display: flex;
+    flex-direction: column;
 }
 .form-group { margin-bottom: 1rem; }
 .form-group label { display: block; margin-bottom: 0.5rem; font-weight: 500; }
@@ -109,6 +128,23 @@ section {
 .form-group-inline { display: flex; gap: 1rem; }
 .form-group-inline .form-group { flex: 1; }
 .modal-actions { margin-top: 2rem; text-align: right; }
+
+/* Custom Schedule layout */
+#custom-schedule { display: flex; flex-direction: column; gap: 10px; }
+.day-row { display: grid; grid-template-columns: minmax(140px, 1fr) 1fr 1fr; gap: 8px; align-items: center; }
+.day-row label { display: flex; align-items: center; gap: 8px; font-weight: 500; }
+.day-row input[type="time"] {
+    width: 100%;
+    padding: 12px;
+    border-radius: 12px;
+    border: 1px solid var(--md-sys-color-outline);
+    box-sizing: border-box;
+}
+.day-row input[type="time"]:disabled { opacity: 0.6; cursor: not-allowed; }
+
+@media (max-width: 520px) {
+    .day-row { grid-template-columns: 1fr; }
+}
 
 .card {
     background-color: #fff;

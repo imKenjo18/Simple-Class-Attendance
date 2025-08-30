@@ -5,17 +5,21 @@ require_once '../config/database.php';
 
 use Endroid\QrCode\QrCode;
 use Endroid\QrCode\Writer\PngWriter;
-use Endroid\QrCode\Color\Color;
 use Endroid\QrCode\Label\Label;
-use Endroid\QrCode\Label\Font\NotoSans;
+use Endroid\QrCode\Encoding\Encoding;
+use Endroid\QrCode\ErrorCorrectionLevel;
+use Endroid\QrCode\RoundBlockSizeMode;
+use Endroid\QrCode\Label\Font\OpenSans;
 
 // --- CONFIGURATION ---
 $font_path = '../assets/fonts/ProductSans-Regular.ttf'; // We'll use this as a fallback.
 
 // --- INPUT & DATABASE ---
 $student_id_num = $_GET['id'] ?? 'invalid_id';
-$student_name = 'Student Not Found';
+$student_name = '';
 $is_download = isset($_GET['download']);
+// Track if a student record was found (null = unknown due to DB error)
+$studentFound = null;
 
 // Fetch the student's name from the database
 try {
@@ -25,24 +29,81 @@ try {
 
     if ($student) {
         $student_name = "{$student['first_name']} {$student['last_name']}";
+        $studentFound = true;
+    } else {
+        $studentFound = false;
     }
 } catch (PDOException $e) {
-    // If the database fails, we can still generate a QR, but with a default name.
+    // Database error: log and handle via guard below (no QR generation on DB failure)
     error_log("Database error in generate_qr.php: " . $e->getMessage());
+}
+
+// Fail fast on database error (studentFound remains null)
+if ($studentFound === null) {
+    while (ob_get_level() > 0) { ob_end_clean(); }
+    header('HTTP/1.1 503 Service Unavailable');
+    if (function_exists('imagecreatetruecolor')) {
+        header('Content-Type: image/png');
+        $error_image = imagecreatetruecolor(460, 140);
+        $bg = imagecolorallocate($error_image, 255, 255, 255);
+        $fg = imagecolorallocate($error_image, 66, 66, 66);
+        $ac = imagecolorallocate($error_image, 230, 74, 25);
+        imagefill($error_image, 0, 0, $bg);
+        imagestring($error_image, 5, 10, 10, 'Service unavailable', $ac);
+        imagestring($error_image, 3, 10, 40, 'A database error occurred. Please try again later.', $fg);
+        imagepng($error_image);
+        imagedestroy($error_image);
+    } else {
+        header('Content-Type: text/plain');
+        echo 'Service unavailable. Database error.';
+    }
+    exit;
+}
+
+// If the student wasn't found, do not generate a QR code
+if ($studentFound === false) {
+    // Clear any previous output (avoid corrupting image bytes)
+    while (ob_get_level() > 0) { ob_end_clean(); }
+    header('HTTP/1.1 404 Not Found');
+    // Prefer PNG error image to keep <img> flows working
+    if (function_exists('imagecreatetruecolor')) {
+        header('Content-Type: image/png');
+        $error_image = imagecreatetruecolor(420, 120);
+        $bg = imagecolorallocate($error_image, 255, 255, 255);
+        $fg = imagecolorallocate($error_image, 66, 66, 66);
+        $ac = imagecolorallocate($error_image, 211, 47, 47);
+        imagefill($error_image, 0, 0, $bg);
+        imagestring($error_image, 5, 10, 10, 'Student not found', $ac);
+        imagestring($error_image, 3, 10, 40, 'No QR for ID: ' . substr((string)$student_id_num, 0, 40), $fg);
+        imagepng($error_image);
+        imagedestroy($error_image);
+    } else {
+        header('Content-Type: text/plain');
+        echo 'Student not found. No QR code generated.';
+    }
+    exit;
 }
 
 // --- QR CODE GENERATION (Using the Library's Built-in Labeling) ---
 // This method is more robust and handles UTF-8 characters better than the GD method.
 
 try {
-    // Create the QR code object
-    $qrCode = QrCode::create($student_id_num)
-        ->setSize(300)
-        ->setMargin(15); // Add a nice margin around the QR code
+    // Create the QR code object with a 15px margin (v6 constructor is immutable)
+    $qrCode = new QrCode(
+        $student_id_num,
+        new Encoding('UTF-8'),
+        ErrorCorrectionLevel::Low,
+        300,  // size
+        15,   // margin
+        RoundBlockSizeMode::Margin
+    );
 
-    // Create the label (the student's name)
-    $label = Label::create($student_name)
-        ->setFont(new NotoSans(18)); // Use a built-in font for better compatibility
+    // Optional label with default OpenSans font (requires GD + FreeType)
+    $label = null;
+    if (extension_loaded('gd') && function_exists('imagettfbbox') && !empty($student_name)) {
+        // Increase label font size to 18 using built-in OpenSans
+        $label = new Label($student_name, new OpenSans(18));
+    }
 
     // Generate the QR code as a PngWriter result object
     $writer = new PngWriter();
@@ -55,9 +116,13 @@ try {
         header('Content-Disposition: attachment; filename="' . $safe_filename . '"');
     }
 
+    // Clear any previous output (BOM/whitespace/notices) to avoid corrupting PNG bytes
+    while (ob_get_level() > 0) { ob_end_clean(); }
+
     // Send the correct content type header and output the image string
     header('Content-Type: ' . $result->getMimeType());
     echo $result->getString();
+    exit;
 
 } catch (Exception $e) {
     // If the QR library fails for any reason, generate a placeholder error image.

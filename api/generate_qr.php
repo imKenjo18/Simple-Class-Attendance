@@ -16,10 +16,6 @@ $font_path = '../assets/fonts/ProductSans-Regular.ttf'; // We'll use this as a f
 
 // --- INPUT & DATABASE ---
 $student_id_num = $_GET['id'] ?? '';
-// Decode if URL-encoded
-if ($student_id_num !== '') {
-    $student_id_num = urldecode($student_id_num);
-}
 $student_name = '';
 $is_download = isset($_GET['download']);
 // Track if a student record was found (null = unknown due to DB error)

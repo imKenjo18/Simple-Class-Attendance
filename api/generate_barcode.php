@@ -7,10 +7,6 @@ use Picqer\Barcode\BarcodeGeneratorPNG;
 
 // --- INPUT & FLAGS ---
 $student_id_num = $_GET['id'] ?? '';
-// Decode if URL-encoded
-if ($student_id_num !== '') {
-    $student_id_num = urldecode($student_id_num);
-}
 $is_download = isset($_GET['download']);
 
 // Guard: empty or whitespace-only input => generate nothing (hide image)

@@ -66,6 +66,16 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
+    // --- SAFE HTML HELPERS ---
+    function escapeHtmlAttr(str) {
+        return String(str)
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#39;');
+    }
+
     async function loadClasses() {
         try {
             const classes = await apiFetch('api/classes.php?action=get_classes');
@@ -89,11 +99,12 @@ document.addEventListener('DOMContentLoaded', () => {
             return;
         }
         classes.forEach(cls => {
+            const clsData = escapeHtmlAttr(JSON.stringify(cls));
             const subtitle = cls.schedule_summary && cls.schedule_summary.length > 0
                 ? cls.schedule_summary
                 : 'No schedule set';
             const classCard = `
-                <div class="card class-card" data-class-info='${JSON.stringify(cls)}'>
+                <div class="card class-card" data-class-info='${clsData}'>
                     <div class="card-content">
                         <h4>${cls.class_name} (${cls.unit_code || ''})</h4>
                         <p>${subtitle}</p>
@@ -114,30 +125,37 @@ document.addEventListener('DOMContentLoaded', () => {
             return;
         }
         students.forEach(student => {
+            const studentData = escapeHtmlAttr(JSON.stringify(student));
+            const idNumRaw = (student.student_id_num ?? '');
+            const idParam = encodeURIComponent(idNumRaw);
+            const safeFirst = escapeHtmlAttr(student.first_name || '');
+            const safeLast = escapeHtmlAttr(student.last_name || '');
+            const safeStatus = escapeHtmlAttr((student.status || '').toString());
+            const safeIdText = escapeHtmlAttr(idNumRaw);
             const studentCard =  `
-                <div class="card student-card" data-id="${student.id}" data-student-info='${JSON.stringify(student)}'>
+                <div class="card student-card" data-id="${student.id}" data-student-info='${studentData}'>
                     <div class="card-content">
-                        <h4>${student.last_name}, ${student.first_name}</h4>
+                        <h4>${safeLast}, ${safeFirst}</h4>
                         <div class="stacon">
-                            <p>ID: ${student.student_id_num}</p>
-                            <p>Status: </p><span class="status-indicator status-${student.status.toLowerCase()}"> ${student.status}</span>
+                            <p>ID: ${safeIdText}</p>
+                            <p>Status: </p><span class="status-indicator status-${(student.status || '').toLowerCase()}"> ${safeStatus}</span>
                         </div>
                     </div>
                     <div class="card-actions">
                         <div class="code-pair">
                             <a
-                                href="api/generate_qr.php?id=${encodeURIComponent(student.student_id_num)}&download=true"
-                                download="QR_${student.first_name}_${student.last_name}.png"
+                                href="api/generate_qr.php?id=${idParam}&download=true"
+                                download="QR_${safeFirst}_${safeLast}.png"
                                 title="Click to download QR code with name"
                             >
-                                <img src="api/generate_qr.php?id=${encodeURIComponent(student.student_id_num)}" alt="QR Code" class="qr-code-thumb" onerror="this.closest('a').style.display='none'">
+                                <img src="api/generate_qr.php?id=${idParam}" alt="QR Code" class="qr-code-thumb" onerror="this.closest('a').style.display='none'">
                             </a>
                             <a
-                                href="api/generate_barcode.php?id=${encodeURIComponent(student.student_id_num)}&download=true"
-                                download="BARCODE_${student.first_name}_${student.last_name}.png"
+                                href="api/generate_barcode.php?id=${idParam}&download=true"
+                                download="BARCODE_${safeFirst}_${safeLast}.png"
                                 title="Click to download barcode"
                             >
-                                <img src="api/generate_barcode.php?id=${encodeURIComponent(student.student_id_num)}" alt="Barcode" class="barcode-thumb" onerror="this.closest('a').style.display='none'">
+                                <img src="api/generate_barcode.php?id=${idParam}" alt="Barcode" class="barcode-thumb" onerror="this.closest('a').style.display='none'">
                             </a>
                         </div>
                         <button class="button view-attendance-btn" title="View Attendance History">History</button>

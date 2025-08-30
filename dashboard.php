@@ -25,7 +25,7 @@ require_once 'includes/header.php';
         <a href="#" id="back-to-classes-link">← Back to All Classes</a>
     </nav>
     <h2 id="detail-class-name"></h2>
-    
+
     <!-- Tab Navigation -->
     <div class="tab-nav">
         <button class="tab-button active" data-tab="attendance">Attendance</button>
@@ -44,6 +44,22 @@ require_once 'includes/header.php';
                     <button id="start-scan-btn" class="button primary icon-button">
                         <span class="material-symbols-outlined">qr_code_scanner</span> Start Scanning
                     </button>
+                </div>
+                <!-- USB Barcode Scanner (keyboard-wedge) -->
+                <div class="barcode-input-wrap" style="margin-top: 16px;">
+                    <label for="barcode-input" style="display:block; font-weight:600; margin-bottom:6px;">USB Barcode Scanner</label>
+                    <input
+                        id="barcode-input"
+                        type="text"
+                        inputmode="text"
+                        autocomplete="off"
+                        spellcheck="false"
+                        pattern="[ -~]+"
+                        title="Printable ASCII only (Code 128-compatible)"
+                        placeholder="Click here (or press Tab) to focus, then scan the barcode"
+                        style="width:100%; max-width:420px; padding:10px;"
+                    />
+                    <small class="hint" style="display:block; color:#666; margin-top:6px;">Most USB scanners type the code quickly and send Enter. We'll submit automatically.</small>
                 </div>
                 <div id="qr-reader" style="display: none; max-width: 500px; margin: 20px auto;"></div>
             </section>
@@ -72,7 +88,7 @@ require_once 'includes/header.php';
                 <p>Select a date range, then preview the data or download it as a CSV file.</p>
                 <form id="report-form">
                     <div class="form-group-inline">
-                         <div class="form-group">
+                        <div class="form-group">
                             <label for="report-start-date">Start Date</label>
                             <input type="date" id="report-start-date" name="start_date" required>
                         </div>

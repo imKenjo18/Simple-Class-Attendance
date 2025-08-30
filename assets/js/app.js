@@ -119,18 +119,29 @@ document.addEventListener('DOMContentLoaded', () => {
                     <div class="card-content">
                         <h4>${student.last_name}, ${student.first_name}</h4>
                         <div class="stacon">
-                        <p>ID: ${student.student_id_num}</p>
-                         <p>Status: </p><span class="status-indicator status-${student.status.toLowerCase()}"> ${student.status}</span>
+                            <p>ID: ${student.student_id_num}</p>
+                            <p>Status: </p><span class="status-indicator status-${student.status.toLowerCase()}"> ${student.status}</span>
                         </div>
                     </div>
                     <div class="card-actions">
-                        <a href="api/generate_qr.php?id=${student.student_id_num}&download=true"
-                        download="QR_${student.first_name}_${student.last_name}.png"
-                        title="Click to download QR code with name">
-                            <img src="api/generate_qr.php?id=${student.student_id_num}" alt="QR Code" class="qr-code-thumb">
-                        </a>
+                        <div class="code-pair">
+                            <a
+                                href="api/generate_qr.php?id=${encodeURIComponent(student.student_id_num)}&download=true"
+                                download="QR_${student.first_name}_${student.last_name}.png"
+                                title="Click to download QR code with name"
+                            >
+                                <img src="api/generate_qr.php?id=${encodeURIComponent(student.student_id_num)}" alt="QR Code" class="qr-code-thumb" onerror="this.closest('a').style.display='none'">
+                            </a>
+                            <a
+                                href="api/generate_barcode.php?id=${encodeURIComponent(student.student_id_num)}&download=true"
+                                download="BARCODE_${student.first_name}_${student.last_name}.png"
+                                title="Click to download barcode"
+                            >
+                                <img src="api/generate_barcode.php?id=${encodeURIComponent(student.student_id_num)}" alt="Barcode" class="barcode-thumb" onerror="this.closest('a').style.display='none'">
+                            </a>
+                        </div>
                         <button class="button view-attendance-btn" title="View Attendance History">History</button>
-                         <button class="button icon-button edit-enrolled-student-btn" title="Edit Student"><span class="material-symbols-outlined">edit</span></button>
+                        <button class="button icon-button edit-enrolled-student-btn" title="Edit Student"><span class="material-symbols-outlined">edit</span></button>
                     </div>
                 </div>`;
             enrolledStudentListContainer.insertAdjacentHTML('beforeend', studentCard);
@@ -186,6 +197,25 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // --- EVENT LISTENERS SETUP ---
     function setupEventListeners() {
+        // Enforce Code 128-compatible characters on the student ID input (printable ASCII 0x20-0x7E)
+        const studentIdInput = document.getElementById('student-id-num');
+        if (studentIdInput) {
+            studentIdInput.addEventListener('input', () => {
+                const allowed = /[ -~]/g; // printable ASCII
+                const filtered = (studentIdInput.value.match(allowed) || []).join('');
+                if (studentIdInput.value !== filtered) studentIdInput.value = filtered;
+            });
+            studentIdInput.addEventListener('keypress', (e) => {
+                const ch = e.key;
+                if (!/[ -~]/.test(ch)) e.preventDefault();
+            });
+            studentIdInput.addEventListener('paste', (e) => {
+                e.preventDefault();
+                const text = (e.clipboardData || window.clipboardData).getData('text');
+                const filtered = (text.match(/[ -~]/g) || []).join('');
+                document.execCommand('insertText', false, filtered);
+            });
+        }
         document.getElementById('class-modal')?.addEventListener('change', (e) => {
             if (!e.target || !e.target.matches('.day-checkbox')) return;
             const cb = e.target;
@@ -456,7 +486,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 tableHTML += `</tbody></table>`;
                 container.innerHTML = tableHTML;
             } else {
-                 container.innerHTML = `<p>Error: ${response.message}</p>`;
+                container.innerHTML = `<p>Error: ${response.message}</p>`;
             }
         } catch (error) {
             container.innerHTML = `<p>Could not load report preview. A server error occurred.</p>`;
@@ -507,7 +537,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!isScannerActive) return;
         try {
             if (html5QrcodeScanner.getState() === 2) { // 2 is SCANNING state
-               await html5QrcodeScanner.clear();
+                await html5QrcodeScanner.clear();
             }
         } catch (error) {
             console.warn("Error stopping the scanner (may be benign).", error);

@@ -15,11 +15,31 @@ use Endroid\QrCode\Label\Font\OpenSans;
 $font_path = '../assets/fonts/ProductSans-Regular.ttf'; // We'll use this as a fallback.
 
 // --- INPUT & DATABASE ---
-$student_id_num = $_GET['id'] ?? 'invalid_id';
+$student_id_num = $_GET['id'] ?? '';
+// Decode if URL-encoded
+if ($student_id_num !== '') {
+    $student_id_num = urldecode($student_id_num);
+}
 $student_name = '';
 $is_download = isset($_GET['download']);
 // Track if a student record was found (null = unknown due to DB error)
 $studentFound = null;
+
+// Guard: empty or whitespace-only input => generate nothing (hide image)
+if (trim((string)$student_id_num) === '') {
+    while (ob_get_level() > 0) { ob_end_clean(); }
+    header('HTTP/1.1 404 Not Found');
+    exit;
+}
+
+// Validate characters for Code 128 (printable ASCII 0x20-0x7E). If invalid, return 400 with no image.
+if (!preg_match('/^[ -~]+$/', (string)$student_id_num)) {
+    while (ob_get_level() > 0) { ob_end_clean(); }
+    header('HTTP/1.1 400 Bad Request');
+    header('Content-Type: text/plain');
+    echo 'Invalid characters for Code 128';
+    exit;
+}
 
 // Fetch the student's name from the database
 try {
@@ -65,22 +85,7 @@ if ($studentFound === false) {
     // Clear any previous output (avoid corrupting image bytes)
     while (ob_get_level() > 0) { ob_end_clean(); }
     header('HTTP/1.1 404 Not Found');
-    // Prefer PNG error image to keep <img> flows working
-    if (function_exists('imagecreatetruecolor')) {
-        header('Content-Type: image/png');
-        $error_image = imagecreatetruecolor(420, 120);
-        $bg = imagecolorallocate($error_image, 255, 255, 255);
-        $fg = imagecolorallocate($error_image, 66, 66, 66);
-        $ac = imagecolorallocate($error_image, 211, 47, 47);
-        imagefill($error_image, 0, 0, $bg);
-        imagestring($error_image, 5, 10, 10, 'Student not found', $ac);
-        imagestring($error_image, 3, 10, 40, 'No QR for ID: ' . substr((string)$student_id_num, 0, 40), $fg);
-        imagepng($error_image);
-        imagedestroy($error_image);
-    } else {
-        header('Content-Type: text/plain');
-        echo 'Student not found. No QR code generated.';
-    }
+    // No body content so the client can hide the image cleanly
     exit;
 }
 

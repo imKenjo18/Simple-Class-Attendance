@@ -28,7 +28,7 @@ $action = $_REQUEST['action'] ?? '';
 try {
     // 4. ROUTING: Use a switch statement to handle different actions.
     switch ($action) {
-         case 'add_and_enroll_student':
+        case 'add_and_enroll_student':
             // --- INPUT VALIDATION ---
             if (empty($_POST['student_id_num']) || empty($_POST['first_name']) || empty($_POST['last_name']) || empty($_POST['class_id'])) {
                 http_response_code(400);
@@ -36,8 +36,15 @@ try {
                 exit;
             }
 
+            // Validate Code 128-compatible characters (printable ASCII 0x20-0x7E)
+            if (!preg_match('/^[ -~]+$/', $_POST['student_id_num'])) {
+                http_response_code(400);
+                echo json_encode(['success' => false, 'message' => 'Student ID Number contains invalid characters for Code 128.']);
+                exit;
+            }
+
             $class_id = $_POST['class_id'];
-            
+
             // Use a transaction to ensure both operations succeed or fail together.
             $pdo->beginTransaction();
             try {
@@ -50,7 +57,7 @@ try {
                     $_POST['first_name'],
                     $_POST['phone'] ?? null
                 ]);
-                
+
                 // Get the ID of the student we just created.
                 $new_student_id = $pdo->lastInsertId();
 
@@ -66,11 +73,11 @@ try {
             } catch (PDOException $e) {
                 // If any error occurred, roll back all changes.
                 $pdo->rollBack();
-                
+
                 if (strpos($e->getMessage(), 'Duplicate entry') !== false) {
-                     echo json_encode(['success' => false, 'message' => 'Error: A student with that ID Number already exists.']);
+                    echo json_encode(['success' => false, 'message' => 'Error: A student with that ID Number already exists.']);
                 } else {
-                     echo json_encode(['success' => false, 'message' => 'Database error: ' . $e->getMessage()]);
+                    echo json_encode(['success' => false, 'message' => 'Database error: ' . $e->getMessage()]);
                 }
             }
             break;
@@ -92,9 +99,15 @@ try {
                 exit;
             }
 
+            if (!preg_match('/^[ -~]+$/', $_POST['student_id_num'])) {
+                http_response_code(400);
+                echo json_encode(['success' => false, 'message' => 'Student ID Number contains invalid characters for Code 128.']);
+                exit;
+            }
+
             $sql = "INSERT INTO students (student_id_num, last_name, first_name, phone) VALUES (?, ?, ?, ?)";
             $stmt = $pdo->prepare($sql);
-            
+
             // Execute with data from the form.
             $stmt->execute([
                 $_POST['student_id_num'],
@@ -102,7 +115,7 @@ try {
                 $_POST['first_name'],
                 $_POST['phone'] ?? null // Use null if phone is not provided
             ]);
-            
+
             echo json_encode(['success' => true, 'message' => 'Student added successfully.']);
             break;
 
@@ -114,9 +127,15 @@ try {
                 exit;
             }
 
+            if (!preg_match('/^[ -~]+$/', $_POST['student_id_num'])) {
+                http_response_code(400);
+                echo json_encode(['success' => false, 'message' => 'Student ID Number contains invalid characters for Code 128.']);
+                exit;
+            }
+
             $sql = "UPDATE students SET student_id_num = ?, last_name = ?, first_name = ?, phone = ? WHERE id = ?";
             $stmt = $pdo->prepare($sql);
-            
+
             $stmt->execute([
                 $_POST['student_id_num'],
                 $_POST['last_name'],
@@ -124,11 +143,11 @@ try {
                 $_POST['phone'] ?? null,
                 $_POST['student_id'] // The ID for the WHERE clause
             ]);
-            
-             $success = $stmt->rowCount() > 0; 
-    
+
+            $success = $stmt->rowCount() > 0;
+
                 echo json_encode([
-                    'success' => $success, 
+                    'success' => $success,
                     'message' => $success ? 'Student updated.' : 'No changes made.'
                 ]);
                 break;
@@ -169,4 +188,3 @@ try {
         echo json_encode(['success' => false, 'message' => 'A database error occurred.']);
     }
 }
-?>

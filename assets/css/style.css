@@ -161,7 +161,8 @@ section {
 .status-green { background-color: #34A853; }
 .status-yellow { background-color: #FBBC04; }
 .status-red { background-color: #EA4335; }
-.qr-code-thumb { width: 40px; height: 40px;padding-right: 30px;margin-right: 20px;border-right: 1px solid #333;}
+.qr-code-thumb { width: 40px; height: 40px;padding-right: 16px;margin-right: 16px;border-right: 1px solid #333;}
+.barcode-thumb { height: 40px;margin-right: 16px;}
 
 /* Toast Notification Styles */
 .toast {

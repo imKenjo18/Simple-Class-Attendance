@@ -87,8 +87,8 @@
                 <h3 id="student-modal-title">Add New Student</h3>
                 <input type="hidden" id="student-id" name="student_id">
                 <div class="form-group">
-                    <label for="student-id-num">Unique ID Number</label>
-                    <input type="text" id="student-id-num" name="student_id_num" required>
+                        <label for="student-id-num">Unique ID Number</label>
+                    <input type="text" id="student-id-num" name="student_id_num" required pattern="[ -~]+" title="Allowed: printable ASCII characters (Code 128)">
                 </div>
                 <div class="form-group-inline">
                     <div class="form-group">

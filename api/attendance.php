@@ -56,7 +56,7 @@ try {
 
             if (!$student) {
                 http_response_code(404); // Not Found
-                echo json_encode(['success' => false, 'message' => 'Error: Student ID not found.']);
+                echo json_encode(['success' => false, 'message' => 'Student ID not found.']);
                 exit;
             }
             $student_pk_id = $student['id'];
@@ -67,7 +67,7 @@ try {
 
             if (!$class) {
                 http_response_code(404);
-                echo json_encode(['success' => false, 'message' => 'Error: Class not found or you do not have permission.']);
+                echo json_encode(['success' => false, 'message' => 'Class not found or you do not have permission.']);
                 exit;
             }
 

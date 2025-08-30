@@ -21,6 +21,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const enrolledStudentListContainer = document.getElementById('enrolled-student-list-container');
     const scannerOverlay = document.getElementById('scanner-overlay');
     const attendanceTakerSection = document.getElementById('attendance-taker');
+    const barcodeInput = document.getElementById('barcode-input');
 
     // --- INITIALIZATION ---
     function initializeDashboard() {
@@ -48,6 +49,11 @@ document.addEventListener('DOMContentLoaded', () => {
         document.getElementById('report-start-date').value = today;
         document.getElementById('report-end-date').value = today;
         document.getElementById('report-preview-container').innerHTML = ''; // Clear old report previews
+        // Focus the USB barcode input for quick scanning
+        setTimeout(() => {
+            const attendancePane = document.getElementById('tab-attendance');
+            if (attendancePane?.classList.contains('active')) barcodeInput?.focus();
+        }, 0);
     }
 
     // --- DATA LOADING & API CALLS ---
@@ -56,12 +62,19 @@ document.addEventListener('DOMContentLoaded', () => {
             const response = await fetch(url, options);
             if (!response.ok) {
                 const errorData = await response.json().catch(() => ({ message: response.statusText }));
-                throw new Error(errorData.message || `HTTP error! status: ${response.status}`);
+                const raw = (errorData && errorData.message) ? String(errorData.message) : `HTTP error! status: ${response.status}`;
+                // Strip any leading "Error:" that might come from server strings
+                const msg = raw.replace(/^Error:\s*/i, '');
+                const err = new Error(msg);
+                // Attach useful debugging info without polluting the console message
+                err.status = response.status;
+                err.body = errorData;
+                throw err;
             }
             return response.json();
         } catch (error) {
-            console.error('API Fetch Error:', error);
-            showToast(`Error: ${error.message}`, 'error');
+            // Log only the human-friendly message to avoid the built-in "Error:" prefix duplication in console
+            console.error('API Fetch Error:', error?.message || error);
             throw error;
         }
     }
@@ -254,6 +267,10 @@ document.addEventListener('DOMContentLoaded', () => {
                 document.querySelectorAll('.tab-pane').forEach(pane => pane.classList.remove('active'));
                 e.target.classList.add('active');
                 document.getElementById(`tab-${e.target.dataset.tab}`).classList.add('active');
+                if (e.target.dataset.tab === 'attendance') {
+                    // Refocus barcode input when returning to Attendance
+                    setTimeout(() => barcodeInput?.focus(), 0);
+                }
             }
         });
         document.getElementById('add-class-btn').addEventListener('click', () => openClassModal());
@@ -277,6 +294,31 @@ document.addEventListener('DOMContentLoaded', () => {
         classListContainer.addEventListener('click', handleClassListClick);
         enrolledStudentListContainer.addEventListener('click', handleEnrolledStudentListClick);
         document.getElementById('start-scan-btn').addEventListener('click', toggleScanner);
+
+        // --- USB BARCODE INPUT ---
+        if (barcodeInput) {
+            // Keep focus while on Attendance tab
+            barcodeInput.addEventListener('blur', () => {
+                const attendancePane = document.getElementById('tab-attendance');
+                if (attendancePane?.classList.contains('active')) setTimeout(() => barcodeInput.focus(), 0);
+            });
+            // Filter to printable ASCII (Code 128 compatible)
+            barcodeInput.addEventListener('input', () => {
+                const v = barcodeInput.value;
+                const filtered = v.replace(/[^\x20-\x7E]/g, '');
+                if (v !== filtered) barcodeInput.value = filtered;
+            });
+            // Submit on Enter or Tab suffix
+            barcodeInput.addEventListener('keydown', async (e) => {
+                if (e.key === 'Enter' || e.key === 'Tab') {
+                    e.preventDefault();
+                    const code = barcodeInput.value;
+                    if (!code) return;
+                    await submitScannedCode(code);
+                    barcodeInput.value = '';
+                }
+            });
+        }
     }
 
     // --- EVENT HANDLER FUNCTIONS ---
@@ -446,7 +488,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function handleDownloadHistory() {
         if (!currentStudentForHistory || !currentClassId) {
-            showToast('Error: Student or class context lost.', 'error');
+            showToast('Student or class context lost.', 'error');
             return;
         }
         const url = `api/import_export.php?action=export_student_history&student_id=${currentStudentForHistory.id}&class_id=${currentClassId}`;
@@ -504,7 +546,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 tableHTML += `</tbody></table>`;
                 container.innerHTML = tableHTML;
             } else {
-                container.innerHTML = `<p>Error: ${response.message}</p>`;
+                container.innerHTML = `<p>${response.message}</p>`;
             }
         } catch (error) {
             container.innerHTML = `<p>Could not load report preview. A server error occurred.</p>`;
@@ -538,7 +580,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function startScanner() {
         if (!currentClassId) {
-            showToast('Error: No class is selected for attendance.', 'error');
+            showToast('No class is selected for attendance.', 'error');
             return;
         }
         originalScannerParent = attendanceTakerSection.parentNode;
@@ -592,6 +634,29 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function onScanError(errorMessage) { /* Can be ignored. */ }
+
+    // Shared submitter for both QR and USB barcode scans
+    async function submitScannedCode(code) {
+        if (!currentClassId) {
+            showToast('No class is selected for attendance.', 'error');
+            return;
+        }
+        try {
+            const formData = new FormData();
+            formData.append('action', 'mark_present');
+            formData.append('student_id_num', code);
+            formData.append('class_id', currentClassId);
+            const result = await apiFetch('api/attendance.php', { method: 'POST', body: formData });
+            if (result.success) {
+                showToast(result.message || 'Marked present.', 'success');
+                loadEnrolledStudents();
+            } else {
+                showToast(result.message || 'Failed to mark attendance.', 'error');
+            }
+        } catch (error) {
+            showToast(error.message, 'error');
+        }
+    }
 
     // --- UTILITY ---
     function showToast(message, type = 'info') {

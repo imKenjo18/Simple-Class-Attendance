@@ -145,7 +145,7 @@ try {
             $end_date = $_GET['end_date'] ?? '';
 
             if (!$class_id || !$start_date || !$end_date) {
-                http_response_code(400); echo "Error: Missing parameters."; exit;
+                http_response_code(400); echo "Missing parameters."; exit;
             }
 
             $report = generateAttendanceReportData($pdo, $class_id, $start_date, $end_date);
@@ -174,17 +174,17 @@ try {
         case 'export_student_history':
             $class_id = $_GET['class_id'] ?? null;
             $student_id = $_GET['student_id'] ?? null;
-            if (!$class_id || !$student_id) { http_response_code(400); echo "Error: Missing class ID or student ID."; exit; }
+            if (!$class_id || !$student_id) { http_response_code(400); echo "Missing class ID or student ID."; exit; }
 
             $class_stmt = $pdo->prepare("SELECT class_name FROM classes WHERE id = ? AND teacher_id = ?");
             $class_stmt->execute([$class_id, $teacher_id]);
             $class = $class_stmt->fetch(PDO::FETCH_ASSOC);
-            if (!$class) { http_response_code(403); echo "Error: Permission denied."; exit; }
+            if (!$class) { http_response_code(403); echo "Permission denied."; exit; }
 
             $student_stmt = $pdo->prepare("SELECT first_name, last_name FROM students WHERE id = ?");
             $student_stmt->execute([$student_id]);
             $student = $student_stmt->fetch(PDO::FETCH_ASSOC);
-            if (!$student) { http_response_code(404); echo "Error: Student not found."; exit; }
+            if (!$student) { http_response_code(404); echo "Student not found."; exit; }
 
             $class_name_safe = preg_replace('/[^a-zA-Z0-9_-]/', '', $class['class_name']);
             $student_name_safe = preg_replace('/[^a-zA-Z0-9_-]/', '', $student['first_name'] . '_' . $student['last_name']);

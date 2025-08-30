@@ -75,7 +75,7 @@ try {
                 $pdo->rollBack();
 
                 if (strpos($e->getMessage(), 'Duplicate entry') !== false) {
-                    echo json_encode(['success' => false, 'message' => 'Error: A student with that ID Number already exists.']);
+                    echo json_encode(['success' => false, 'message' => 'A student with that ID Number already exists.']);
                 } else {
                     echo json_encode(['success' => false, 'message' => 'Database error: ' . $e->getMessage()]);
                 }
@@ -183,7 +183,7 @@ try {
     // error_log($e->getMessage());
     if (strpos($e->getMessage(), 'Duplicate entry') !== false) {
         // Provide a more specific error for unique constraint violations
-        echo json_encode(['success' => false, 'message' => 'Database Error: A student with that ID Number already exists.']);
+        echo json_encode(['success' => false, 'message' => 'A student with that ID Number already exists.']);
     } else {
         echo json_encode(['success' => false, 'message' => 'A database error occurred.']);
     }

@@ -1,6 +1,7 @@
 {
     "require": {
-        "endroid/qr-code": "^4.0",
-        "twilio/sdk": "^8.7"
+        "endroid/qr-code": "^6.0",
+        "twilio/sdk": "^8.7",
+        "picqer/php-barcode-generator": "^3.2"
     }
 }

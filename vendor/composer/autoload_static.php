@@ -11,6 +11,10 @@ class ComposerStaticInita363e61c9b1081d1a87c12e0e16d9bd8
         array (
             'Twilio\\' => 7,
         ),
+        'P' => 
+        array (
+            'Picqer\\Barcode\\' => 15,
+        ),
         'E' => 
         array (
             'Endroid\\QrCode\\' => 15,
@@ -29,6 +33,10 @@ class ComposerStaticInita363e61c9b1081d1a87c12e0e16d9bd8
         'Twilio\\' => 
         array (
             0 => __DIR__ . '/..' . '/twilio/sdk/src/Twilio',
+        ),
+        'Picqer\\Barcode\\' => 
+        array (
+            0 => __DIR__ . '/..' . '/picqer/php-barcode-generator/src',
         ),
         'Endroid\\QrCode\\' => 
         array (

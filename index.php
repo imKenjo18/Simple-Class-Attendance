@@ -15,12 +15,16 @@ if (isset($_SESSION['teacher_id'])) {
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Login & Registration - Class Attendance</title>
-    
+
     <!-- We can reuse the main stylesheet for basic elements like fonts and buttons -->
-    <link rel="stylesheet" href="assets/css/style.css">
-    
+    <?php
+        $ver_style = @filemtime(__DIR__ . '/assets/css/style.css') ?: time();
+        $ver_auth  = @filemtime(__DIR__ . '/assets/css/auth.css') ?: time();
+        $ver_auth_js = @filemtime(__DIR__ . '/assets/js/auth.js') ?: time();
+    ?>
+    <link rel="stylesheet" href="assets/css/style.css?v=<?=$ver_style?>">
     <!-- We use a specific stylesheet for the unique layout of the login page -->
-    <link rel="stylesheet" href="assets/css/auth.css">
+    <link rel="stylesheet" href="assets/css/auth.css?v=<?=$ver_auth?>">
 </head>
 <body>
 
@@ -32,7 +36,7 @@ if (isset($_SESSION['teacher_id'])) {
                 <h1>Welcome Back</h1>
                 <p>Please enter your details to sign in.</p>
                 <div id="login-message" class="message"></div>
-                
+
                 <form id="login-form" novalidate>
                     <div class="form-group">
                         <label for="login-username">Username</label>
@@ -44,7 +48,7 @@ if (isset($_SESSION['teacher_id'])) {
                     </div>
                     <button type="submit" class="button primary full-width">Login</button>
                 </form>
-                
+
                 <p class="auth-switch">First time here? <a href="#" id="show-register-link">Create an account</a></p>
             </div>
 
@@ -53,7 +57,7 @@ if (isset($_SESSION['teacher_id'])) {
                 <h1>Create Account</h1>
                 <p>Let's get you set up for your first class.</p>
                 <div id="register-message" class="message"></div>
-                
+
                 <form id="register-form" novalidate>
                     <div class="form-group">
                         <label for="register-username">Username</label>
@@ -77,7 +81,16 @@ if (isset($_SESSION['teacher_id'])) {
     </div>
 
     <!-- The JavaScript for this page is separate from the main app's JS -->
-    <script src="assets/js/auth.js"></script>
+    <script src="assets/js/auth.js?v=<?=$ver_auth_js?>"></script>
+    <script>
+    if ('serviceWorker' in navigator) {
+        window.addEventListener('load', function() {
+            navigator.serviceWorker.register('/sw.js').catch(function(err){
+                console.warn('SW registration failed:', err);
+            });
+        });
+    }
+    </script>
 
 </body>
 </html>

@@ -133,7 +133,51 @@
         <div class="spinner" role="status" aria-label="Loading"></div>
     </div>
 
-    <script src="assets/js/html5-qrcode.min.js" type="text/javascript"></script>
-    <script src="assets/js/app.js"></script>
+    <?php
+        // Append file modification times to bust caches when files change
+        $ver_style = @filemtime(__DIR__ . '/../assets/css/style.css') ?: time();
+        $ver_fonts = @filemtime(__DIR__ . '/../assets/css/google-fonts.css') ?: time();
+        $ver_auth  = @filemtime(__DIR__ . '/../assets/css/auth.css') ?: time();
+        $ver_qr    = @filemtime(__DIR__ . '/../assets/js/html5-qrcode.min.js') ?: time();
+        $ver_app   = @filemtime(__DIR__ . '/../assets/js/app.js') ?: time();
+    ?>
+    <link rel="preload" href="assets/css/style.css?v=<?=$ver_style?>" as="style" />
+    <link rel="preload" href="assets/js/app.js?v=<?=$ver_app?>" as="script" />
+    <script src="assets/js/html5-qrcode.min.js?v=<?=$ver_qr?>" type="text/javascript"></script>
+    <script src="assets/js/app.js?v=<?=$ver_app?>"></script>
+
+    <script>
+    // Service Worker registration with update handling
+    if ('serviceWorker' in navigator) {
+        window.addEventListener('load', function() {
+            navigator.serviceWorker.register('/sw.js').then(function(reg) {
+                // If there's an updated SW waiting, trigger it
+                if (reg.waiting) {
+                    reg.waiting.postMessage({ type: 'SKIP_WAITING' });
+                }
+                // Listen for updates found
+                reg.addEventListener('updatefound', function() {
+                    const newWorker = reg.installing;
+                    newWorker && newWorker.addEventListener('statechange', function() {
+                        if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
+                            // New content is available; ask to skip waiting
+                            newWorker.postMessage({ type: 'SKIP_WAITING' });
+                        }
+                    });
+                });
+            }).catch(function(err) {
+                console.warn('SW registration failed:', err);
+            });
+
+            // Reload automatically after SW activates and notifies us
+            navigator.serviceWorker.addEventListener('message', function(event) {
+                if (event.data && event.data.type === 'SW_ACTIVATED') {
+                    // Do a soft reload to pick up new assets
+                    window.location.reload();
+                }
+            });
+        });
+    }
+    </script>
 </body>
 </html>

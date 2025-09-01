@@ -21,8 +21,12 @@ if (!isset($_SESSION['teacher_id'])) {
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Attendance Dashboard</title>
-    <link rel="stylesheet" href="assets/css/google-fonts.css">
-    <link rel="stylesheet" href="assets/css/style.css">
+    <?php
+        $ver_style = @filemtime(__DIR__ . '/../assets/css/style.css') ?: time();
+        $ver_fonts = @filemtime(__DIR__ . '/../assets/css/google-fonts.css') ?: time();
+    ?>
+    <link rel="stylesheet" href="assets/css/google-fonts.css?v=<?=$ver_fonts?>">
+    <link rel="stylesheet" href="assets/css/style.css?v=<?=$ver_style?>">
 </head>
 <body>
 

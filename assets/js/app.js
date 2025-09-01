@@ -22,6 +22,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const scannerOverlay = document.getElementById('scanner-overlay');
     const attendanceTakerSection = document.getElementById('attendance-taker');
     const barcodeInput = document.getElementById('barcode-input');
+    const barcodeInputWrap = document.querySelector('.barcode-input-wrap');
 
     // --- INITIALIZATION ---
     function initializeDashboard() {
@@ -49,11 +50,8 @@ document.addEventListener('DOMContentLoaded', () => {
         document.getElementById('report-start-date').value = today;
         document.getElementById('report-end-date').value = today;
         document.getElementById('report-preview-container').innerHTML = ''; // Clear old report previews
-        // Focus the USB barcode input for quick scanning
-        setTimeout(() => {
-            const attendancePane = document.getElementById('tab-attendance');
-            if (attendancePane?.classList.contains('active')) barcodeInput?.focus();
-        }, 0);
+        // Focus the USB barcode input for quick scanning (only when not scanning)
+        focusBarcodeInputIfAvailable();
     }
 
     // --- DATA LOADING & API CALLS ---
@@ -76,6 +74,22 @@ document.addEventListener('DOMContentLoaded', () => {
             // Log only the human-friendly message to avoid the built-in "Error:" prefix duplication in console
             console.error('API Fetch Error:', error?.message || error);
             throw error;
+        }
+    }
+
+    // Centralized, safe focusing logic for the USB barcode input
+    function focusBarcodeInputIfAvailable() {
+        const attendancePane = document.getElementById('tab-attendance');
+        // Don't focus if scanner overlay is active or input is disabled (prevents mobile keyboard popping up)
+        if (
+            attendancePane?.classList.contains('active') &&
+            !isScannerActive &&
+            barcodeInput &&
+            !barcodeInput.disabled &&
+            // Also ensure it's visible (offsetParent is null when display: none)
+            barcodeInput.offsetParent !== null
+        ) {
+            setTimeout(() => barcodeInput?.focus(), 0);
         }
     }
 
@@ -268,8 +282,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 e.target.classList.add('active');
                 document.getElementById(`tab-${e.target.dataset.tab}`).classList.add('active');
                 if (e.target.dataset.tab === 'attendance') {
-                    // Refocus barcode input when returning to Attendance
-                    setTimeout(() => barcodeInput?.focus(), 0);
+                    // Refocus barcode input when returning to Attendance (unless scanning)
+                    focusBarcodeInputIfAvailable();
                 }
             }
         });
@@ -300,7 +314,8 @@ document.addEventListener('DOMContentLoaded', () => {
             // Keep focus while on Attendance tab
             barcodeInput.addEventListener('blur', () => {
                 const attendancePane = document.getElementById('tab-attendance');
-                if (attendancePane?.classList.contains('active')) setTimeout(() => barcodeInput.focus(), 0);
+                // Avoid refocusing while scanner is active to allow camera dropdown interaction on mobile
+                if (attendancePane?.classList.contains('active') && !isScannerActive) setTimeout(() => barcodeInput.focus(), 0);
             });
             // Filter to printable ASCII (Code 128 compatible)
             barcodeInput.addEventListener('input', () => {
@@ -583,11 +598,22 @@ document.addEventListener('DOMContentLoaded', () => {
             showToast('No class is selected for attendance.', 'error');
             return;
         }
+        // Prevent the mobile keyboard from appearing and stealing focus while choosing camera
+        if (barcodeInput) {
+            barcodeInput.blur();
+            barcodeInput.setAttribute('data-disabled-by-scanner', '1');
+            barcodeInput.disabled = true;
+            // Hide the entire barcode input section while overlay is active (mobile-friendly)
+            if (barcodeInputWrap) {
+                barcodeInputWrap.setAttribute('data-hidden-by-scanner', '1');
+                barcodeInputWrap.style.display = 'none';
+            }
+        }
         originalScannerParent = attendanceTakerSection.parentNode;
         scannerOverlay.appendChild(attendanceTakerSection);
         scannerOverlay.style.display = 'flex';
         qrReaderDiv.style.display = 'block';
-        startScanBtn.textContent = 'Stop Scanning';
+        startScanBtn.innerHTML = '<span class="material-symbols-outlined">qr_code_scanner</span> Stop Scanning';
         startScanBtn.classList.add('destructive');
         isScannerActive = true;
         html5QrcodeScanner.render(onScanSuccess, onScanError);
@@ -608,9 +634,20 @@ document.addEventListener('DOMContentLoaded', () => {
             originalScannerParent = null;
         }
         qrReaderDiv.style.display = 'none';
-        startScanBtn.textContent = 'Start Scanning';
+        startScanBtn.innerHTML = '<span class="material-symbols-outlined">qr_code_scanner</span> Scan QR';
         startScanBtn.classList.remove('destructive');
         isScannerActive = false;
+        // Re-enable the barcode input (and show its wrapper) now that the scanner overlay is closed
+        if (barcodeInput && barcodeInput.getAttribute('data-disabled-by-scanner') === '1') {
+            barcodeInput.disabled = false;
+            barcodeInput.removeAttribute('data-disabled-by-scanner');
+            // Show the wrapper again
+            if (barcodeInputWrap && barcodeInputWrap.getAttribute('data-hidden-by-scanner') === '1') {
+                barcodeInputWrap.style.display = '';
+                barcodeInputWrap.removeAttribute('data-hidden-by-scanner');
+            }
+            focusBarcodeInputIfAvailable();
+        }
     }
 
     async function onScanSuccess(decodedText) {

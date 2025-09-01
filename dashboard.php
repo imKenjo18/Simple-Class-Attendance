@@ -39,10 +39,10 @@ require_once 'includes/header.php';
         <div id="tab-attendance" class="tab-pane active">
             <section id="attendance-taker">
                 <h3>Take Attendance</h3>
-                <p>Start the scanner to mark students present for this class.</p>
+                <p>Start scanning to mark students present for this class.</p>
                 <div class="attendance-controls">
                     <button id="start-scan-btn" class="button primary icon-button">
-                        <span class="material-symbols-outlined">qr_code_scanner</span> Start Scanning
+                        <span class="material-symbols-outlined">qr_code_scanner</span> Scan QR
                     </button>
                 </div>
                 <!-- USB Barcode Scanner (keyboard-wedge) -->

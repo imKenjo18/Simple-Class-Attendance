@@ -122,9 +122,9 @@ try {
             $_SESSION['student_phone'] = $student['phone'] ?? null;
             $_SESSION['class_id'] = $class_id;
 
-            if (!empty($_SESSION['student_phone'])) {
-                require_once 'notify.php';
-            }
+            // if (!empty($_SESSION['student_phone'])) {
+            //     require_once 'notify.php';
+            // }
             break;
 
         /**

@@ -73,6 +73,8 @@ document.addEventListener('DOMContentLoaded', () => {
         } catch (error) {
             // Log only the human-friendly message to avoid the built-in "Error:" prefix duplication in console
             console.error('API Fetch Error:', error?.message || error);
+            if (error.message !== null || error.message !== '')
+            showToast(error?.message, 'error');
             throw error;
         }
     }

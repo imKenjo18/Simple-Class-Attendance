@@ -83,13 +83,13 @@ try {
 
         case 'update_class':
             // Legacy schedule columns are deprecated; keep them as-is/null
-            $stmt = $pdo->prepare("UPDATE classes SET class_name=?, unit_code=?, start_time=?, end_time=?, day_of_week=? WHERE id=? AND teacher_id=?");
+            $stmt = $pdo->prepare("UPDATE classes SET class_name=?, unit_code=? WHERE id=? AND teacher_id=?");
             $stmt->execute([
                 $_POST['class_name'],
                 $_POST['unit_code'],
-                $_POST['start_time'],
-                $_POST['end_time'],
-                $_POST['day_of_week'],
+                // $_POST['start_time'],
+                // $_POST['end_time'],
+                // $_POST['day_of_week'],
                 $_POST['class_id'],
                 $teacher_id
             ]);

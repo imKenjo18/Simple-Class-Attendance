@@ -72,7 +72,7 @@ function generateAttendanceReportData(PDO $pdo, int $class_id, string $start_dat
 
     // 4. Get all existing attendance records for this class within the date range
     $stmt = $pdo->prepare("
-        SELECT student_id, attendance_date, status
+        SELECT student_id, attendance_date, status, recorded_at
         FROM attendance_records
         WHERE class_id = ? AND attendance_date BETWEEN ? AND ?
     ");
@@ -82,7 +82,8 @@ function generateAttendanceReportData(PDO $pdo, int $class_id, string $start_dat
     // Re-index records into a map for fast O(1) lookups: [student_id][date] => status
     $records_map = [];
     foreach ($records_raw as $record) {
-        $records_map[$record['student_id']][$record['attendance_date']] = $record['status'];
+        $records_map[$record['student_id']][$record['attendance_date']]['status'] = $record['status'];
+        $records_map[$record['student_id']][$record['attendance_date']]['time_in'] = $record['recorded_at'];
     }
 
     // 5. Build the final report data by merging students, dates, and records
@@ -96,8 +97,10 @@ function generateAttendanceReportData(PDO $pdo, int $class_id, string $start_dat
         foreach ($valid_class_dates as $date) {
             // If a record exists for this student on this date, use its status
             if (isset($records_map[$student['id']][$date])) {
-                $status = $records_map[$student['id']][$date];
-                if ($status === 'Present') {
+                $status = $records_map[$student['id']][$date]['status'];
+                if ($status === 'Present' || $status === 'Late') {
+                    $time_in = $records_map[$student['id']][$date]['time_in'] ?? '';
+                    $status .= ' (' . date('g:i A', strtotime($time_in)) . ')';
                     $present_count++;
                 }
             } else {
